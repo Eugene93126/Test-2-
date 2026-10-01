@@ -1,0 +1,105 @@
+:root {
+  --font-display: 'Newsreader Variable', 'Iowan Old Style', Georgia, serif;
+  --font-body: 'Instrument Sans Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, 'SF Mono', monospace;
+  --ivory: #FAF9F5;
+  --slate: #141413;
+  --clay: #D97757;
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: var(--slate);
+}
+
+body {
+  font-family: var(--font-body);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+button { font: inherit; color: inherit; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+.stage { position: fixed !important; inset: 0; }
+.overlay { position: fixed; inset: 0; pointer-events: none; }
+
+/* ---------- Phase 1 review controls ---------- */
+.devbar {
+  position: fixed;
+  left: 50%;
+  bottom: max(20px, env(safe-area-inset-bottom));
+  translate: -50% 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: calc(100vw - 32px);
+  padding: 6px;
+  border-radius: 22px;
+  background: rgba(20, 20, 19, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #F0EEE6;
+  font-size: 13px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
+}
+.devbar-group { display: flex; gap: 2px; flex-wrap: wrap; justify-content: center; }
+.devbar-rule { width: 1px; align-self: stretch; margin: 6px 4px; background: rgba(255, 255, 255, 0.14); }
+.chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 13px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  transition: background-color .2s;
+}
+.chip:hover { background: rgba(255, 255, 255, 0.06); }
+.chip-label { position: relative; z-index: 1; }
+.chip[aria-pressed="true"] .chip-label { color: #141413; }
+.chip-pill { position: absolute; inset: 0; border-radius: inherit; background: #F0EEE6; }
+.swatch { position: relative; z-index: 1; width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35); }
+.chip .dot { position: relative; z-index: 1; width: 8px; height: 8px; border-radius: 50%; background: var(--clay); }
+.chip[aria-pressed="true"]:not(:has(.chip-pill)) { background: rgba(255, 255, 255, 0.1); }
+.chip[aria-pressed] .chip-label { color: inherit; }
+.chip[aria-pressed="true"]:has(.chip-pill) .chip-label { color: #141413; }
+
+/* ---------- Perf meter ---------- */
+.perf {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  width: 260px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(16, 16, 15, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #E8E6DC;
+  font: 12px/1.6 var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  z-index: 10;
+}
+.perf-title { color: #9C9A92; margin-bottom: 6px; }
+.perf-row { display: flex; justify-content: space-between; gap: 12px; }
+.perf-row b { font-weight: 500; }
+.perf-gpu { margin-top: 6px; color: #87867F; font-size: 11px; line-height: 1.4; }
+
+@media (prefers-reduced-motion: reduce) {
+  .chip { transition: none; }
+}
