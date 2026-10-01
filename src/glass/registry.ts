@@ -6,7 +6,8 @@ import { motionValue, type MotionValue } from 'motion/react'
 // source of truth; each frame the slab is placed to match it and the DOM gets a
 // transform that follows the slab's projection as the head moves.
 
-export const DEPTH = { near: 2.4, mid: 3.2, far: 4.2 } as const
+// sheet: overlays that float just in front of the main window (model picker, Dock settings).
+export const DEPTH = { near: 2.4, sheet: 2.75, mid: 3.2, far: 4.2 } as const
 export type DepthName = keyof typeof DEPTH
 
 export const MAX_RIPPLES = 4
@@ -18,6 +19,8 @@ export interface PanelEntry {
   depth: number
   /** Corner radius in CSS px. */
   radius: number
+  /** 0: refracts the world. 1: an overlay that refracts the world and the glass behind it. */
+  layer: 0 | 1
   el: HTMLElement
   /** Layout box at rest, CSS px from the viewport's top left. */
   rest: { x: number; y: number; w: number; h: number }
@@ -31,6 +34,8 @@ export interface PanelEntry {
   ripples: Ripple[]
   /** World size of the slab, meters; written by the 3D layer. */
   world: { w: number; h: number; cx: number; cy: number }
+  /** Slab size spring (meters): the glass eases to a new layout size. */
+  size: { w: number; h: number; vw: number; vh: number }
   /** Last DOM transform written, to skip redundant style writes. */
   lastTransform: string
 }
@@ -61,15 +66,16 @@ export function measureRest(entry: PanelEntry) {
   entry.rest = { x, y, w: entry.el.offsetWidth, h: entry.el.offsetHeight }
 }
 
-export function createEntry(id: string, el: HTMLElement, depth: number, radius: number): PanelEntry {
+export function createEntry(id: string, el: HTMLElement, depth: number, radius: number, layer: 0 | 1 = 0): PanelEntry {
   return {
-    id, depth, radius, el,
+    id, depth, radius, el, layer,
     rest: { x: 0, y: 0, w: 0, h: 0 },
     presence: motionValue(0),
     pointer: { x: 0, y: 0 },
     hoverTarget: 0, hover: 0, hoverV: 0,
     ripples: [],
     world: { w: 0, h: 0, cx: 0, cy: 0 },
+    size: { w: 0, h: 0, vw: 0, vh: 0 },
     lastTransform: '',
   }
 }

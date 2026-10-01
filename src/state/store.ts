@@ -4,6 +4,10 @@ import { THEME_ORDER, type ThemeId } from '../theme/themes'
 export type GyroState = 'unsupported' | 'available' | 'needs-permission' | 'on' | 'denied'
 export type GlyphId = 'lens' | 'arc' | 'keystone'
 export type TypePair = 'a' | 'b'
+export type SectionId = 'chat' | 'circle' | 'world' | 'code' | 'home' | 'memory' | 'trust'
+export type ModelId = 'fable' | 'mythos' | 'pantheon2' | 'odyssey' | 'pantheon1'
+export type Modal = 'models' | 'dock' | null
+export const SECTION_ORDER: SectionId[] = ['chat', 'circle', 'world', 'code', 'home', 'memory', 'trust']
 
 const prefersReduced = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 // Review links can set the starting state: ?theme=dusk&focus=1&perf
@@ -34,6 +38,18 @@ interface AppState {
   setVideoPlaying: (p: boolean) => void
   perfOpen: boolean
   setPerfOpen: (p: boolean) => void
+  section: SectionId
+  setSection: (s: SectionId) => void
+  /** Pinned Dock apps, always in canonical order. */
+  pinned: SectionId[]
+  togglePin: (s: SectionId) => void
+  dockLabels: boolean
+  setDockLabels: (l: boolean) => void
+  model: ModelId
+  setModel: (m: ModelId) => void
+  /** An overlay sheet that takes focus (the model picker, Dock customization). */
+  modal: Modal
+  setModal: (m: Modal) => void
 }
 
 export const useApp = create<AppState>()(set => ({
@@ -57,4 +73,17 @@ export const useApp = create<AppState>()(set => ({
   setVideoPlaying: videoPlaying => set({ videoPlaying }),
   perfOpen: q.has('perf'),
   setPerfOpen: perfOpen => set({ perfOpen }),
+  section: SECTION_ORDER.find(id => id === q.get('section')) ?? 'chat',
+  setSection: section => set({ section }),
+  pinned: [...SECTION_ORDER],
+  togglePin: id => set(s => {
+    if (s.pinned.includes(id)) return s.pinned.length > 1 ? { pinned: s.pinned.filter(p => p !== id) } : s
+    return { pinned: SECTION_ORDER.filter(p => p === id || s.pinned.includes(p)) }
+  }),
+  dockLabels: true,
+  setDockLabels: dockLabels => set({ dockLabels }),
+  model: 'fable',
+  setModel: model => set({ model }),
+  modal: q.get('modal') === 'models' ? 'models' : null,
+  setModal: modal => set({ modal }),
 }))

@@ -5,8 +5,8 @@ An interactive prototype of the Claude app as seen through AR glasses on Saturda
 Built in phases, with a review after each:
 
 1. **World and lens**: city loop with depth parallax, apartment window, head motion (mouse or gyroscope), lens effects, five theme lens tints, perf meter.
-2. **Glass** (current): glass slabs at 3 depths with real refraction, a head-tracked rim light, inner sheen, a lens under the pointer and ripples on press; focus by gaze; two type pairings and three logo options to choose from in the Review menu.
-3. Shell: HUD, glance cards, Dock, model picker, section transitions.
+2. **Glass**: glass slabs at 3 depths with real refraction, a head-tracked rim light, inner sheen, a lens under the pointer and ripples on press; focus by gaze; two type pairings and three logo options to choose from in the Review menu.
+3. **Shell** (current): live HUD (in-world clock from 8:41 PM, grid price that drops when peak ends at 9, energy meter, battery), glance cards that count down or open their section, the Claude Dock (magnetic icons, sliding highlight, pin and unpin, labels), the model picker (five models, Mythos locked) and section transitions. Sheets are overlay glass that refracts the panels behind them.
 4. Chat, Circle, World.
 5. Code, Home, Memory, Trust.
 6. Phone layout, performance and accessibility pass.
@@ -21,7 +21,7 @@ npm run build      # static build in dist/, works from any folder
 
 Every push to this branch or `main` publishes the build to the `gh-pages` branch (`.github/workflows/pages.yml`), served at https://eugene93126.github.io/Test-2-/ once Pages is set to deploy from `gh-pages`. Open it on a phone and tap **Use motion sensor** to steer with head tilt; the embedded Claude preview can't read motion sensors.
 
-Review links can set the starting state: `?theme=dusk`, `?focus=1`, `?type=b`, `?glyph=arc` (or `keystone`), `?perf`. The backtick key toggles the perf meter.
+Review links can set the starting state: `?theme=dusk`, `?focus=1`, `?type=b`, `?glyph=arc` (or `keystone`), `?section=home`, `?modal=models`, `?perf`. The backtick key toggles the perf meter.
 
 ## How it's put together
 

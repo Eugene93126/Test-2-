@@ -1,5 +1,5 @@
-import { useLayoutEffect, useRef, type CSSProperties, type ReactNode } from 'react'
-import { animate } from 'motion/react'
+import { useEffect, useLayoutEffect, useRef, type CSSProperties, type ReactNode } from 'react'
+import { animate, usePresence } from 'motion/react'
 import { addRipple, createEntry, DEPTH, localPointer, measureRest, panels, usePanelIds, type DepthName } from './registry'
 import { gazeEnter, gazeLeave, gazeTouch } from './gaze'
 import { useApp } from '../state/store'
@@ -18,18 +18,24 @@ interface Props {
   style?: CSSProperties
   label?: string
   as?: 'div' | 'section' | 'aside' | 'header' | 'nav'
+  /** Overlay glass refracts the panels behind it, not just the world. */
+  overlay?: boolean
+  role?: string
   children: ReactNode
 }
 
 // The DOM half of a glass panel. It lays out with plain CSS and holds the
 // content; GlassLayer draws the glass slab behind it and moves this element
 // to stay glued to the slab as the head moves.
-export function GlassPanel({ id, depth = 'mid', radius = 24, focusable = false, delay = 0, className = '', style, label, as = 'div', children }: Props) {
+export function GlassPanel({ id, depth = 'mid', radius = 24, focusable = false, delay = 0, className = '', style, label, as = 'div', overlay = false, role, children }: Props) {
   const ref = useRef<HTMLDivElement>(null)
+  // Inside AnimatePresence, sink back into the world before unmounting.
+  const [isPresent, safeToRemove] = usePresence()
+  const exiting = useRef(false)
 
   useLayoutEffect(() => {
     const el = ref.current!
-    const entry = createEntry(id, el, DEPTH[depth], radius)
+    const entry = createEntry(id, el, DEPTH[depth], radius, overlay ? 1 : 0)
     panels.set(id, entry)
     measureRest(entry)
     usePanelIds.getState().add(id)
@@ -46,7 +52,28 @@ export function GlassPanel({ id, depth = 'mid', radius = 24, focusable = false, 
       panels.delete(id)
       usePanelIds.getState().remove(id)
     }
-  }, [id, depth, radius, delay])
+  }, [id, depth, radius, delay, overlay])
+
+  useEffect(() => {
+    const p = panels.get(id)
+    if (isPresent) {
+      // Reopened while sinking away: rise again.
+      if (p && exiting.current) {
+        exiting.current = false
+        p.el.style.pointerEvents = ''
+        animate(p.presence, 1, SPRING)
+      }
+      return
+    }
+    if (!p) { safeToRemove?.(); return }
+    exiting.current = true
+    p.el.style.pointerEvents = 'none'
+    p.hoverTarget = 0
+    const reduced = useApp.getState().reducedMotion
+    const c = animate(p.presence, 0, reduced ? { duration: 0.18 } : { type: 'spring', stiffness: 420, damping: 38 })
+    c.then(() => safeToRemove?.())
+    return () => c.stop()
+  }, [isPresent, safeToRemove, id])
 
   const entry = () => panels.get(id)
   const Tag = as
@@ -55,6 +82,7 @@ export function GlassPanel({ id, depth = 'mid', radius = 24, focusable = false, 
       ref={ref as never}
       data-panel={id}
       aria-label={label}
+      role={role}
       className={`panel ${className}`}
       style={{ borderRadius: radius, ...style }}
       onPointerEnter={e => {

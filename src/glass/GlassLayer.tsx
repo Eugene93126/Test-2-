@@ -75,6 +75,9 @@ export function GlassLayer() {
   const bh = Math.max(2, Math.round(size.height * dpr * BUFFER_SCALE))
   const sharp = useFBO(bw, bh, { type: THREE.HalfFloatType, samples: 0, depthBuffer: true })
   const blurred = useFBO(bw, bh, { type: THREE.HalfFloatType, samples: 0, depthBuffer: false })
+  // Second buffer for overlay glass: the world plus the panels behind the overlay.
+  const sharpB = useFBO(bw, bh, { type: THREE.HalfFloatType, samples: 0, depthBuffer: true })
+  const blurredB = useFBO(bw, bh, { type: THREE.HalfFloatType, samples: 0, depthBuffer: false })
   const kawase = useMemo(() => new KawaseBlurPass({ kernelSize: KernelSize.LARGE, resolutionScale: 0.5 }), [])
   useEffect(() => { kawase.setSize(bw, bh) }, [kawase, bw, bh])
   useEffect(() => () => kawase.dispose(), [kawase])
@@ -123,9 +126,25 @@ export function GlassLayer() {
       kawase.render(gl, sharp, blurred)
       tex = blurred.texture
     }
-    gl.setRenderTarget(null)
     g.visible = true
     for (const s of slabs.values()) s.mat.uniforms.buffer.value = tex
+
+    // Overlay glass sees the base panels through it: render them into a second buffer.
+    let overlays = 0
+    for (const [id, s] of slabs) if (s.mesh.visible && panels.get(id)?.layer === 1) { s.mesh.visible = false; overlays++ }
+    if (overlays) {
+      gl.setRenderTarget(sharpB)
+      gl.clear()
+      gl.render(state.scene, cam)
+      let texB: THREE.Texture = sharpB.texture
+      if (blur > 0.02) { kawase.render(gl, sharpB, blurredB); texB = blurredB.texture }
+      for (const [id, s] of slabs) {
+        if (panels.get(id)?.layer !== 1) continue
+        s.mesh.visible = (panels.get(id)?.presence.get() ?? 0) > 0.001
+        s.mat.uniforms.buffer.value = texB
+      }
+    }
+    gl.setRenderTarget(null)
   }, -100)
 
   return (
@@ -145,16 +164,26 @@ function placeSlab(e: PanelEntry, s: Slab, cam: THREE.PerspectiveCamera, W: numb
   const r = e.radius * perPx
   e.world = { w, h, cx, cy }
 
+  // The glass eases to a new size (Dock pins, sheets); the text lays out at once.
+  const z = e.size
+  if (z.w === 0 || reduced) { z.w = w; z.h = h; z.vw = 0; z.vh = 0 }
+  else {
+    const hs = Math.min(dt, 1 / 30)
+    z.vw += (300 * (w - z.w) - 30 * z.vw) * hs; z.w += z.vw * hs
+    z.vh += (300 * (h - z.h) - 30 * z.vh) * hs; z.h += z.vh * hs
+  }
+  const gw = z.w, gh = z.h
+
   // Rebuild the slab when its size changes (resizes are rare; throttled).
   const gg = s.geo
-  if ((Math.abs(w - gg.w) > gg.w * 0.004 || Math.abs(h - gg.h) > gg.h * 0.004 || Math.abs(r - gg.r) > 0.002) && now - gg.at > 0.12) {
+  if ((Math.abs(gw - gg.w) > gg.w * 0.004 || Math.abs(gh - gg.h) > gg.h * 0.004 || Math.abs(r - gg.r) > 0.002) && now - gg.at > 0.12) {
     const old = s.mesh.geometry
-    s.mesh.geometry = slabGeometry(w, h, r)
+    s.mesh.geometry = slabGeometry(gw, gh, r)
     old.dispose()
-    s.geo = { w, h, r, at: now }
+    s.geo = { w: gw, h: gh, r, at: now }
   }
   // Between rebuilds, stretch the current slab to the new size.
-  const sx = s.geo.w > 0 ? w / s.geo.w : 1, sy = s.geo.h > 0 ? h / s.geo.h : 1
+  const sx = s.geo.w > 0 ? gw / s.geo.w : 1, sy = s.geo.h > 0 ? gh / s.geo.h : 1
 
   // Presence: the slab rises a little toward you as it appears.
   const p = e.presence.get()
@@ -164,7 +193,7 @@ function placeSlab(e: PanelEntry, s: Slab, cam: THREE.PerspectiveCamera, W: numb
   s.mesh.position.set(cx, cy, -d - lift)
   s.mesh.scale.set(sx * grow, sy * grow, 1)
   s.u.uPresence.value = p
-  s.u.uSlabSize.value.set(w, h)
+  s.u.uSlabSize.value.set(gw, gh)
 
   // Hover spring (300 / 30) and pointer.
   const hh = Math.min(dt, 1 / 30)

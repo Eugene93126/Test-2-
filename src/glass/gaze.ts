@@ -30,12 +30,14 @@ export function gazeTouch(_id: string, focusable: boolean) {
   useApp.getState().setFocused(focusable)
 }
 
-/** Tap on the world (outside every panel) releases focus. */
+/** Tap on the world (outside every panel) releases focus and closes any sheet. */
 export function installWorldTap() {
   const onDown = (e: PointerEvent) => {
     const t = e.target as Element | null
     if (t?.closest('[data-panel], [data-review]')) return
-    useApp.getState().setFocused(false)
+    const s = useApp.getState()
+    s.setFocused(false)
+    if (s.modal) s.setModal(null)
   }
   window.addEventListener('pointerdown', onDown)
   return () => window.removeEventListener('pointerdown', onDown)

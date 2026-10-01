@@ -5,8 +5,8 @@ import { useApp } from '../state/store'
 export const focus = { x: 0, v: 0 }
 
 export function stepFocus(dt: number) {
-  const { focused, focusPinned, reducedMotion } = useApp.getState()
-  const target = focused || focusPinned ? 1 : 0
+  const { focused, focusPinned, modal, reducedMotion } = useApp.getState()
+  const target = focused || focusPinned || modal ? 1 : 0
   const h = Math.min(dt, 1 / 30)
   if (reducedMotion) {
     focus.x += (target - focus.x) * (1 - Math.exp(-h * 10))
