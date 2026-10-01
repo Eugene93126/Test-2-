@@ -19,6 +19,8 @@ npm run dev        # http://localhost:5173
 npm run build      # static build in dist/, works from any folder
 ```
 
+Every push to this branch or `main` publishes the build to the `gh-pages` branch (`.github/workflows/pages.yml`), served at https://eugene93126.github.io/Test-2-/ once Pages is set to deploy from `gh-pages`. Open it on a phone and tap **Use motion sensor** to steer with head tilt; the embedded Claude preview can't read motion sensors.
+
 Review links can set the starting state: `?theme=dusk`, `?focus=1`, `?perf`. The backtick key toggles the perf meter.
 
 ## How it's put together

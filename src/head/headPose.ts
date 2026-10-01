@@ -63,13 +63,24 @@ export function useHeadInput() {
   }, [setGyro])
 }
 
-let base: { beta: number; gamma: number } | null = null
+let base: { x: number; y: number } | null = null
+
+// Tilt in screen axes: gamma and beta swap when the phone is held sideways.
+function screenTilt(beta: number, gamma: number) {
+  const angle = screen.orientation?.angle ?? 0
+  if (angle === 90) return { x: beta, y: -gamma }
+  if (angle === 270 || angle === -90) return { x: -beta, y: gamma }
+  if (angle === 180) return { x: -gamma, y: -beta }
+  return { x: gamma, y: beta }
+}
+
 function onOrientation(e: DeviceOrientationEvent) {
   if (e.beta == null || e.gamma == null) return
-  if (!base) base = { beta: e.beta, gamma: e.gamma }
+  const t = screenTilt(e.beta, e.gamma)
+  if (!base) base = t
   const clamp = (v: number) => Math.max(-1, Math.min(1, v))
-  head.tx = clamp((e.gamma - base.gamma) / 14)
-  head.ty = clamp(-(e.beta - base.beta) / 12)
+  head.tx = clamp((t.x - base.x) / 14)
+  head.ty = clamp(-(t.y - base.y) / 12)
 }
 
 /** Must run inside a user gesture on iOS. */
@@ -83,6 +94,7 @@ export async function enableGyro() {
     }
     base = null
     window.addEventListener('deviceorientation', onOrientation)
+    screen.orientation?.addEventListener('change', recenterGyro)
     setGyro('on')
   } catch {
     setGyro('denied')
