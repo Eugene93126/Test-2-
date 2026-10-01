@@ -74,7 +74,11 @@ export function useHeadInput() {
     const onLeave = () => { head.tx = 0; head.ty = 0; lock = null }
     // Scroll or pinch to walk closer to the interface or step back.
     const onWheel = (e: WheelEvent) => {
-      if ((e.target as Element | null)?.closest('[data-review]')) return
+      const t = e.target as Element | null
+      if (t?.closest('[data-review]')) return
+      // Lists that scroll keep the wheel for themselves.
+      const sc = t?.closest<HTMLElement>('[data-scroll]')
+      if (sc && sc.scrollHeight > sc.clientHeight + 1) return
       nudgeWalk(e.deltaY * 0.0012)
     }
     let pinch = 0

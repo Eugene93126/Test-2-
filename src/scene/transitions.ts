@@ -11,6 +11,7 @@ import type { TransitionKind } from './effects/TransitionEffect'
 //   Odyssey 3.2    merge    two offset realities slide into one; the three
 //                           depth layers flow into a single plane and back
 //   Pantheon 1.0   dip      a quiet power cycle
+// With Standard effects (Review → Effects) every switch is a plain content fade.
 
 export const transition = {
   kind: null as TransitionKind | null,
@@ -62,6 +63,19 @@ export function switchModel(id: ModelId, from?: { x: number; y: number }) {
   s.setModal(null)
   if (id === s.model) return
   const reduced = s.reducedMotion
+
+  // Standard effects: no lens pass. The window's content eases out, the model
+  // changes, and it settles back in.
+  if (s.fx === 'standard' && !reduced) {
+    const veil = document.querySelector<HTMLElement>('[data-model-fade]')
+    if (!veil) { s.setModel(id); return }
+    animate(veil, { opacity: 0, y: 6 }, { duration: 0.16, ease: 'easeIn' }).then(() => {
+      useApp.getState().setModel(id)
+      animate(veil, { opacity: [0, 1], y: [-6, 0] }, { type: 'spring', stiffness: 300, damping: 30 })
+    })
+    return
+  }
+
   const kind: TransitionKind = reduced ? 'dip' : KIND_FOR[id] ?? 'dip'
   const spec = SPEC[kind]
   transition.kind = kind

@@ -15,10 +15,12 @@ export function App() {
   const theme = useApp(s => s.theme)
   const reducedMotion = useApp(s => s.reducedMotion)
   const typePair = useApp(s => s.typePair)
+  const fx = useApp(s => s.fx)
   useHeadInput()
 
   useEffect(() => { document.documentElement.dataset.type = typePair }, [typePair])
   useEffect(() => { document.documentElement.dataset.motion = reducedMotion ? 'reduced' : 'full' }, [reducedMotion])
+  useEffect(() => { document.documentElement.dataset.fx = fx }, [fx])
 
   // Panels re-measure when the window or the fonts change their layout.
   useEffect(() => {

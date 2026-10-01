@@ -99,7 +99,8 @@ export function GlassLayer() {
     stepFocus(dt)
 
     // Theme: ease shared glass uniforms toward the current look.
-    const { theme, reducedMotion } = useApp.getState()
+    const { theme, reducedMotion, fx } = useApp.getState()
+    const lensing = !reducedMotion && fx === 'spatial'
     const look = GLASS_LOOKS[theme]
     const k = 1 - Math.exp(-dt * 3.2)
     sharedGlass.uMilk.value.lerp(tmp.set(...look.milk), k)
@@ -116,7 +117,7 @@ export function GlassLayer() {
     for (const [id, s] of slabs) {
       const e = panels.get(id)
       if (!e || e.rest.w === 0) { s.mesh.visible = false; continue }
-      placeSlab(e, s, cam, W, H, dpx, tanHalf, now, dt, reducedMotion)
+      placeSlab(e, s, cam, W, H, dpx, tanHalf, now, dt, reducedMotion, lensing)
       s.mat.color.lerp(tmpC.setRGB(...look.color), k)
       ;(s.mat.uniforms.attenuationColor.value as THREE.Color).lerp(tmpC.setRGB(...look.attenuation), k)
     }
@@ -175,7 +176,7 @@ export function GlassLayer() {
 }
 
 function placeSlab(e: PanelEntry, s: Slab, cam: THREE.PerspectiveCamera, W: number, H: number, dpx: number,
-  tanHalf: number, now: number, dt: number, reduced: boolean) {
+  tanHalf: number, now: number, dt: number, reduced: boolean, lensing: boolean) {
   // During Odyssey's merge every layer flows toward the main window's plane.
   const m = mergeAmount()
   const d = e.depth + (DEPTH.mid - e.depth) * m * 0.8
@@ -189,7 +190,7 @@ function placeSlab(e: PanelEntry, s: Slab, cam: THREE.PerspectiveCamera, W: numb
   e.world = { w, h, cx, cy }
 
   // Moving windows bend space: neighbors lean toward them and stretch along the pull.
-  const pull = reduced ? { dx: 0, dy: 0, sx: 1, sy: 1 } : pullOn(e.id, e.rest.x + e.rest.w / 2, e.rest.y + e.rest.h / 2)
+  const pull = !lensing ? { dx: 0, dy: 0, sx: 1, sy: 1 } : pullOn(e.id, e.rest.x + e.rest.w / 2, e.rest.y + e.rest.h / 2)
   const pcx = cx + pull.dx * perPx, pcy = cy - pull.dy * perPx
 
   // The glass eases to a new size (Dock pins, sheets); the text lays out at once.
@@ -253,7 +254,7 @@ function placeSlab(e: PanelEntry, s: Slab, cam: THREE.PerspectiveCamera, W: numb
   e.apparentScale = scale
 
   // A window moving through depth carries mass: record it as a gravity well.
-  const mass = reduced ? 0 : massOf(e)
+  const mass = lensing ? massOf(e) : 0
   if (mass > 0.01) gravity.next.push({ id: e.id, cx: px, cy: py, hw: (e.rest.w / 2) * scale, hh: (e.rest.h / 2) * scale, r: e.radius * scale, mass })
 
   const q = 1 / dpx

@@ -7,6 +7,8 @@ export type TypePair = 'a' | 'b'
 export type SectionId = 'chat' | 'circle' | 'world' | 'code' | 'home' | 'memory' | 'trust'
 export type ModelId = 'fable' | 'mythos' | 'pantheon2' | 'odyssey' | 'pantheon1'
 export type Modal = 'models' | 'dock' | null
+/** Spatial: gravity lensing, flights, auras and per-model transitions. Standard: plain smooth fades and slides. */
+export type Fx = 'spatial' | 'standard'
 export const SECTION_ORDER: SectionId[] = ['chat', 'circle', 'world', 'code', 'home', 'memory', 'trust']
 
 const prefersReduced = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
@@ -14,6 +16,9 @@ const prefersReduced = typeof window !== 'undefined' && window.matchMedia?.('(pr
 const q = new URLSearchParams(location.search)
 const qTheme = q.get('theme') as ThemeId | null
 const startTheme: ThemeId = qTheme && THEME_ORDER.includes(qTheme) ? qTheme : 'glass'
+const FX_KEY = 'claude2034.fx'
+const storedFx = (() => { try { return localStorage.getItem(FX_KEY) } catch { return null } })()
+const startFx: Fx = (q.get('fx') ?? storedFx) === 'standard' ? 'standard' : 'spatial'
 
 interface AppState {
   theme: ThemeId
@@ -30,6 +35,8 @@ interface AppState {
   setTypePair: (t: TypePair) => void
   reducedMotion: boolean
   setReducedMotion: (r: boolean) => void
+  fx: Fx
+  setFx: (f: Fx) => void
   headMotion: boolean
   setHeadMotion: (h: boolean) => void
   gyro: GyroState
@@ -65,6 +72,8 @@ export const useApp = create<AppState>()(set => ({
   setTypePair: typePair => set({ typePair }),
   reducedMotion: !!prefersReduced,
   setReducedMotion: reducedMotion => set({ reducedMotion }),
+  fx: startFx,
+  setFx: fx => { try { localStorage.setItem(FX_KEY, fx) } catch { /* private mode */ } set({ fx }) },
   headMotion: true,
   setHeadMotion: headMotion => set({ headMotion }),
   gyro: 'unsupported',
@@ -87,3 +96,6 @@ export const useApp = create<AppState>()(set => ({
   modal: q.get('modal') === 'models' ? 'models' : null,
   setModal: modal => set({ modal }),
 }))
+
+/** Spatial effects are on: not reduced motion, and not the Standard setting. */
+export const spatialFx = () => { const s = useApp.getState(); return s.fx === 'spatial' && !s.reducedMotion }

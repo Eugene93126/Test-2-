@@ -5,14 +5,22 @@ import { SECTION_ORDER, useApp, type SectionId } from '../state/store'
 import { SECTIONS } from '../data/sections'
 import { modelById } from '../data/models'
 import { Chat } from './sections/Chat'
-import { Resting } from './sections/Resting'
 import { Circle } from './sections/Circle'
 import { World } from './sections/World'
+import { Code } from './sections/Code'
+import { Home } from './sections/Home'
+import { Memory } from './sections/Memory'
+import { Trust } from './sections/Trust'
 import { SPRING } from './motion'
 
 // The main window at the mid depth, where your eyes rest. Switching sections
 // morphs the title and slides the content in the direction you moved along
 // the Dock; only transforms and opacity animate.
+
+const SECTION_VIEWS: Record<SectionId, () => React.ReactNode> = {
+  chat: () => <Chat />, circle: () => <Circle />, world: () => <World />,
+  code: () => <Code />, home: () => <Home />, memory: () => <Memory />, trust: () => <Trust />,
+}
 
 const content = {
   enter: (dir: number) => ({ opacity: 0, x: dir * 36 }),
@@ -66,11 +74,13 @@ export function MainWindow() {
         </motion.button>
       </div>
       <div className="main-content">
-        <AnimatePresence mode="popLayout" initial={false} custom={dir}>
-          <motion.div key={section} className="section" custom={dir} variants={content} initial="enter" animate="center" exit="exit" transition={SPRING}>
-            {section === 'chat' ? <Chat /> : section === 'circle' ? <Circle /> : section === 'world' ? <World /> : <Resting id={section} />}
-          </motion.div>
-        </AnimatePresence>
+        <div className="model-fade" data-model-fade>
+          <AnimatePresence mode="popLayout" initial={false} custom={dir}>
+            <motion.div key={section} className="section" custom={dir} variants={content} initial="enter" animate="center" exit="exit" transition={SPRING}>
+              {SECTION_VIEWS[section]()}
+            </motion.div>
+          </AnimatePresence>
+        </div>
       </div>
     </GlassPanel>
   )

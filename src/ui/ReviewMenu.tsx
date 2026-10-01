@@ -41,6 +41,14 @@ export function ReviewMenu() {
             )}
             {s.gyro === 'denied' && <p className="review-note">Motion access was declined. Allow it in Settings, then reload.</p>}
 
+            <Group label="Effects">
+              <Option on={s.fx === 'spatial'} onClick={() => s.setFx('spatial')} layoutId="pill-fx">Spatial</Option>
+              <Option on={s.fx === 'standard'} onClick={() => s.setFx('standard')} layoutId="pill-fx">Standard</Option>
+              <p className="review-note">{s.fx === 'spatial'
+                ? 'Windows bend space as they move, controls shimmer until you look at them, and each model has its own transition.'
+                : 'Smooth fades and slides only: no lensing, flights, auras or model transitions. Glass ripples still answer your touch.'}</p>
+            </Group>
+
             <Group label="Theme">
               {THEME_ORDER.map(id => (
                 <Option key={id} on={s.theme === id} onClick={() => s.setTheme(id)} layoutId="pill-theme">

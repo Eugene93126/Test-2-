@@ -2,7 +2,7 @@ import { useRef } from 'react'
 import { AnimatePresence, animate, motion, useSpring, type MotionValue } from 'motion/react'
 import { GlassPanel } from '../glass/GlassPanel'
 import { addRipple, panels } from '../glass/registry'
-import { SECTION_ORDER, useApp, type SectionId } from '../state/store'
+import { SECTION_ORDER, spatialFx, useApp, type SectionId } from '../state/store'
 import { SECTIONS } from '../data/sections'
 import { SECTION_ICONS, SlidersIcon } from './icons'
 import { SPRING } from './motion'
@@ -23,10 +23,11 @@ export function goToSection(id: SectionId) {
   setSection(id)
   // A ripple rolls up through the main window from the Dock, and the window
   // dips back and springs forward: its momentum briefly bends space around it.
+  // (Standard effects keep only the content slide.)
   const main = panels.get('main')
-  if (main) {
+  if (main && spatialFx()) {
     addRipple(main, 0, -main.world.h / 2 + 0.04, 0.75)
-    if (!useApp.getState().reducedMotion) { main.fly.set(0.9); animate(main.fly, 1, { type: 'spring', stiffness: 300, damping: 13 }) }
+    main.fly.set(0.9); animate(main.fly, 1, { type: 'spring', stiffness: 300, damping: 13 })
   }
 }
 
