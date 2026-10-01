@@ -22,11 +22,11 @@ export function Lens() {
   const blur = useRef({ x: 0, v: 0 })
 
   useFrame((state, dt) => {
-    const { focused, theme, reducedMotion } = useApp.getState()
+    const { focused, focusPinned, theme, reducedMotion } = useApp.getState()
     const g = THEMES[theme].lens
     // Spring (stiffness 300, damping 30) toward the focus blur.
     const s = blur.current
-    const target = focused ? MAX_BOKEH : 0
+    const target = focused || focusPinned ? MAX_BOKEH : 0
     const h = Math.min(dt, 1 / 30)
     if (reducedMotion) { s.x += (target - s.x) * (1 - Math.exp(-h * 10)); s.v = 0 }
     else { s.v += (300 * (target - s.x) - 30 * s.v) * h; s.x += s.v * h }
