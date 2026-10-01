@@ -23,7 +23,7 @@ export interface GlassLook {
 export const GLASS_LOOKS: Record<ThemeId, GlassLook> = {
   paper: { color: [1, 1, 1], attenuation: [0.94, 0.97, 1.0], milk: [0.95, 0.94, 0.91], milkAmt: 0.72, rim: [1, 1, 1], rimAmt: 0.9, sheen: 0.05, edgeDark: 0 },
   graphite: { color: [0.62, 0.62, 0.6], attenuation: [0.86, 0.88, 0.9], milk: [0.012, 0.012, 0.011], milkAmt: 0.52, rim: [1, 0.97, 0.92], rimAmt: 0.55, sheen: 0.025, edgeDark: 0 },
-  glass: { color: [0.97, 0.99, 1.0], attenuation: [0.78, 0.92, 0.98], milk: [0.008, 0.012, 0.02], milkAmt: 0.24, rim: [0.92, 0.98, 1.0], rimAmt: 1.0, sheen: 0.05, edgeDark: 0 },
+  glass: { color: [0.97, 0.99, 1.0], attenuation: [0.78, 0.92, 0.98], milk: [0.006, 0.01, 0.018], milkAmt: 0.3, rim: [0.92, 0.98, 1.0], rimAmt: 1.0, sheen: 0.035, edgeDark: 0 },
   dusk: { color: [1.0, 0.86, 0.72], attenuation: [1.0, 0.86, 0.72], milk: [0.022, 0.009, 0.006], milkAmt: 0.46, rim: [1.0, 0.86, 0.68], rimAmt: 0.8, sheen: 0.035, edgeDark: 0 },
   kiln: { color: [1, 1, 1], attenuation: [1.0, 0.9, 0.86], milk: [0.95, 0.91, 0.86], milkAmt: 0.86, rim: [1, 1, 1], rimAmt: 0.45, sheen: 0.03, edgeDark: 0.9 },
 }
@@ -79,6 +79,8 @@ uniform float uSheen;
 uniform float uEdgeDark;
 uniform vec2 uResolution;
 float gRippleGlow = 0.0;
+float gCA = 0.0;
+float gRippleTrough = 0.0;
 `
 
 // Runs right after three has built the surface normal (view space).
@@ -105,8 +107,12 @@ const FRAG_NORMAL = /* glsl */ `
     float wave = sin(k * 2.6) * exp(-k * k * 0.5);
     dN += (d / max(r, 1e-4)) * wave * env * 0.5;
     gRippleGlow += max(wave, 0.0) * env;
+    gRippleTrough += max(-wave, 0.0) * env;
   }
   dN *= faceMask;
+  // Color fringing only where light actually bends: the bevel, and the face
+  // while it ripples. On the flat face it would cost three reads for nothing.
+  gCA = chromaticAberration * max(1.0 - smoothstep(0.9, 0.995, vSlabNormal.z), clamp(length(dN) * 3.0, 0.0, 1.0));
   vec3 dView = mat3(viewMatrix) * (mat3(modelMatrix) * vec3(dN, 0.0));
   normal = normalize(normal + dView);
 }
@@ -127,14 +133,18 @@ const FRAG_FINAL = /* glsl */ `
   float rim = pow(1.0 - facing, 2.2) * edge;
   float key = pow(max(dot(Nw, L), 0.0), 7.0) * edge;
   col += uRim * (rim * 0.4 + key * 1.25) * uRimAmt;
-  // The edge brightens where your finger is.
+  // Where your finger is: the nearby edge catches the light and the face glows softly.
   vec2 dp = vSlabPos.xy - uPointer;
-  col += uRim * edge * exp(-dot(dp, dp) / 0.04) * uHover * 1.1;
+  float d2 = dot(dp, dp);
+  col += uRim * edge * exp(-d2 / 0.09) * uHover * 1.2;
+  col += uRim * exp(-d2 / 0.012) * uHover * 0.07 * (1.0 - edge);
   // Soft inner sheen: a broad band across the face that drifts with the head.
   vec2 q = vSlabPos.xy / max(uSlabSize, vec2(0.001));
   float band = q.x * 0.9 + q.y * 0.7 - uHead.x * 0.22 + uHead.y * 0.12 + 0.28;
   col += vec3(1.0) * exp(-band * band * 7.0) * uSheen * (1.0 - edge);
-  col += uRim * gRippleGlow * 0.16;
+  // Ripple crests catch the light; troughs dip a little.
+  col += uRim * gRippleGlow * 0.28 * (1.0 - edge);
+  col *= 1.0 - 0.12 * min(gRippleTrough, 1.0);
   // Kiln's dark outline.
   col = mix(col, vec3(0.012, 0.006, 0.004), edge * uEdgeDark);
   // Entrance: fade in from exactly what is behind.
@@ -154,6 +164,8 @@ export function patchGlass(mat: THREE.Material & { userData: Record<string, unkn
     shader.fragmentShader = FRAG_PARS + shader.fragmentShader
       .replace('#include <normal_fragment_maps>', FRAG_NORMAL)
       .replace('#include <opaque_fragment>', FRAG_FINAL)
+      .replace('if (chromaticAberration == 0.0) {', 'if (gCA < 0.0005) {')
+      .replace('float aberration = chromaticAberration * sampleProgress;', 'float aberration = gCA * sampleProgress;')
   }
   mat.customProgramCacheKey = () => 'glass-slab-v1'
   mat.userData.glassPatched = true

@@ -5,6 +5,7 @@ import * as THREE from 'three'
 import { CityBackdrop } from './CityBackdrop'
 import { WindowFrame } from './WindowFrame'
 import { Lens } from './Lens'
+import { GlassLayer } from '../glass/GlassLayer'
 import { PerfProbe } from '../perf/perf'
 import { Base64HDRLoader } from './hdri'
 import { head, stepHead } from '../head/headPose'
@@ -69,6 +70,7 @@ export function Stage() {
       </Suspense>
       <CityBackdrop />
       <WindowFrame />
+      <GlassLayer />
       <Lens />
       <PerfProbe />
     </Canvas>

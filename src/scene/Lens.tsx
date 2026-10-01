@@ -6,12 +6,14 @@ import { HalfFloatType } from 'three'
 import { LensEffect } from './effects/LensEffect'
 import { useApp } from '../state/store'
 import { THEMES } from '../theme/themes'
+import { focus } from './focus'
 
 // The lens stack, in order: depth of field (the world falls away when a panel
 // has focus), bloom on bright highlights, then the lens itself.
 
-// Panel focus distance; the city and the window frame sit well behind it.
-const FOCUS_DISTANCE = 3.2
+// Focus sits on the panels (2.4 to 4.2 m); the range keeps all three depths
+// sharp while the window frame and the city fall away.
+const FOCUS_DISTANCE = 3.3
 const MAX_BOKEH = 7
 
 export function Lens() {
@@ -19,19 +21,12 @@ export function Lens() {
   const dof = useRef<DepthOfFieldEffect>(null)
   const bloom = useRef<BloomEffect>(null)
   const lens = useMemo(() => new LensEffect(), [])
-  const blur = useRef({ x: 0, v: 0 })
 
   useFrame((state, dt) => {
-    const { focused, focusPinned, theme, reducedMotion } = useApp.getState()
+    const { theme, reducedMotion } = useApp.getState()
     const g = THEMES[theme].lens
-    // Spring (stiffness 300, damping 30) toward the focus blur.
-    const s = blur.current
-    const target = focused || focusPinned ? MAX_BOKEH : 0
-    const h = Math.min(dt, 1 / 30)
-    if (reducedMotion) { s.x += (target - s.x) * (1 - Math.exp(-h * 10)); s.v = 0 }
-    else { s.v += (300 * (target - s.x) - 30 * s.v) * h; s.x += s.v * h }
-    s.x = Math.max(0, s.x)
-    if (dof.current) dof.current.bokehScale = s.x
+    // The shared focus spring (stepped by the glass layer) drives the blur.
+    if (dof.current) dof.current.bokehScale = Math.max(0, focus.x) * MAX_BOKEH
     const k = 1 - Math.exp(-dt * 3.2)
     if (bloom.current) bloom.current.intensity += (g.bloom - bloom.current.intensity) * k
     const u = lens.uniforms
@@ -43,7 +38,7 @@ export function Lens() {
 
   return (
     <EffectComposer multisampling={0} frameBufferType={HalfFloatType} enableNormalPass={false}>
-      <DepthOfField ref={dof} worldFocusDistance={FOCUS_DISTANCE} worldFocusRange={1.0} bokehScale={0} resolutionScale={0.5} />
+      <DepthOfField ref={dof} worldFocusDistance={FOCUS_DISTANCE} worldFocusRange={8} bokehScale={0} resolutionScale={0.5} />
       <Bloom ref={bloom} mipmapBlur intensity={0.4} luminanceThreshold={0.78} luminanceSmoothing={0.22} radius={0.72} />
       <primitive object={lens} dispose={null} />
     </EffectComposer>

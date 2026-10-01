@@ -43,12 +43,25 @@ export function useHeadInput() {
   const setGyro = useApp(s => s.setGyro)
 
   useEffect(() => {
+    // While the pointer is over a panel the head steadies (30% of the motion),
+    // so the panel you are reading doesn't slide under your cursor.
+    let lock: { x: number; y: number } | null = null
     const onPointer = (e: PointerEvent) => {
       if (e.pointerType === 'touch') return
-      head.tx = (e.clientX / window.innerWidth) * 2 - 1
-      head.ty = -((e.clientY / window.innerHeight) * 2 - 1)
+      const rx = (e.clientX / window.innerWidth) * 2 - 1
+      const ry = -((e.clientY / window.innerHeight) * 2 - 1)
+      const inPanel = (e.target as Element | null)?.closest?.('[data-panel]')
+      if (inPanel) {
+        lock ??= { x: head.tx, y: head.ty }
+        head.tx = lock.x + (rx - lock.x) * 0.3
+        head.ty = lock.y + (ry - lock.y) * 0.3
+      } else {
+        lock = null
+        head.tx = rx
+        head.ty = ry
+      }
     }
-    const onLeave = () => { head.tx = 0; head.ty = 0 }
+    const onLeave = () => { head.tx = 0; head.ty = 0; lock = null }
     window.addEventListener('pointermove', onPointer, { passive: true })
     document.addEventListener('pointerleave', onLeave)
 

@@ -11,7 +11,7 @@ import { focus, stepFocus } from '../scene/focus'
 import { useApp } from '../state/store'
 
 const coarse = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches
-const SAMPLES = coarse ? 4 : 6
+const SAMPLES = coarse ? 3 : 5
 const BUFFER_SCALE = coarse ? 0.6 : 0.85
 
 interface Slab { mesh: THREE.Mesh; mat: THREE.MeshPhysicalMaterial & { uniforms: Record<string, THREE.IUniform> }; u: SlabUniforms; geo: { w: number; h: number; r: number; at: number } }
@@ -50,9 +50,9 @@ function GlassSlab({ id, buffer }: { id: string; buffer: THREE.Texture }) {
         anisotropicBlur={0.03}
         roughness={0}
         distortion={0}
-        clearcoat={1}
-        clearcoatRoughness={0.04}
-        envMapIntensity={0.85}
+        clearcoat={0.25}
+        clearcoatRoughness={0.08}
+        envMapIntensity={0.2}
         color={new THREE.Color(...look.color)}
         attenuationColor={new THREE.Color(...look.attenuation)}
         attenuationDistance={1.4}
@@ -153,7 +153,8 @@ function placeSlab(e: PanelEntry, s: Slab, cam: THREE.PerspectiveCamera, W: numb
     old.dispose()
     s.geo = { w, h, r, at: now }
   }
-  const sx = gg.w > 0 ? w / gg.w : 1, sy = gg.h > 0 ? h / gg.h : 1
+  // Between rebuilds, stretch the current slab to the new size.
+  const sx = s.geo.w > 0 ? w / s.geo.w : 1, sy = s.geo.h > 0 ? h / s.geo.h : 1
 
   // Presence: the slab rises a little toward you as it appears.
   const p = e.presence.get()
@@ -172,11 +173,13 @@ function placeSlab(e: PanelEntry, s: Slab, cam: THREE.PerspectiveCamera, W: numb
   s.u.uHover.value = reduced ? e.hoverTarget * 0.5 : Math.max(0, e.hover)
   s.u.uPointer.value.set(e.pointer.x, e.pointer.y)
 
-  // Ripples: age in seconds, dropped after they fade.
-  e.ripples = e.ripples.filter(rp => now - rp.t < 2.4)
+  // Ripples: age in seconds, dropped after they fade. (window.__rippleAge pins
+  // the age for screenshots on slow software renderers.)
+  const pinned = (window as unknown as { __rippleAge?: number }).__rippleAge
+  if (pinned == null) e.ripples = e.ripples.filter(rp => now - rp.t < 2.4)
   s.u.uRipples.value.forEach((v, i) => {
     const rp = e.ripples[i]
-    if (rp && !reduced) v.set(rp.x, rp.y, now - rp.t, rp.strength)
+    if (rp && !reduced) v.set(rp.x, rp.y, pinned ?? now - rp.t, rp.strength)
     else v.set(0, 0, 0, 0)
   })
 

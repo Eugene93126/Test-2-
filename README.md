@@ -4,8 +4,8 @@ An interactive prototype of the Claude app as seen through AR glasses on Saturda
 
 Built in phases, with a review after each:
 
-1. **World and lens** (this commit): city loop with depth parallax, apartment window, head motion (mouse or gyroscope), lens effects, five theme lens tints, perf meter.
-2. Glass panels (refraction, rim light, ripples on hover and touch), the 3 depths, typography and glyph.
+1. **World and lens**: city loop with depth parallax, apartment window, head motion (mouse or gyroscope), lens effects, five theme lens tints, perf meter.
+2. **Glass** (current): glass slabs at 3 depths with real refraction, a head-tracked rim light, inner sheen, a lens under the pointer and ripples on press; focus by gaze; two type pairings and three logo options to choose from in the Review menu.
 3. Shell: HUD, glance cards, Dock, model picker, section transitions.
 4. Chat, Circle, World.
 5. Code, Home, Memory, Trust.
@@ -21,11 +21,12 @@ npm run build      # static build in dist/, works from any folder
 
 Every push to this branch or `main` publishes the build to the `gh-pages` branch (`.github/workflows/pages.yml`), served at https://eugene93126.github.io/Test-2-/ once Pages is set to deploy from `gh-pages`. Open it on a phone and tap **Use motion sensor** to steer with head tilt; the embedded Claude preview can't read motion sensors.
 
-Review links can set the starting state: `?theme=dusk`, `?focus=1`, `?perf`. The backtick key toggles the perf meter.
+Review links can set the starting state: `?theme=dusk`, `?focus=1`, `?type=b`, `?glyph=arc` (or `keystone`), `?perf`. The backtick key toggles the perf meter.
 
 ## How it's put together
 
 - `src/scene/CityBackdrop.tsx`: the city is a looping video plus a depth map. The shader shifts near rooftops against the skyline as your head moves and applies the theme's lens tint.
+- `src/glass/`: each panel is a DOM element (layout and text) plus a 3D glass slab. `GlassPanel` registers the element; `GlassLayer` renders the world once into a shared buffer (blurred when a panel has focus), places a slab behind every panel at its depth, and moves the DOM to follow the slab's projection. `material.ts` patches drei's `MeshTransmissionMaterial` with the ripple, hover lens, rim light, sheen and per-theme tint.
 - `src/scene/WindowFrame.tsx`: real geometry for the window, so it slides against the city.
 - `src/scene/Lens.tsx` and `effects/LensEffect.ts`: depth of field when a panel has focus, bloom, then one pass for edge curvature, chromatic fringing, a lens-shaped vignette and grain.
 - `src/head/headPose.ts`: mouse or gyroscope input drives a spring-smoothed head pose. The camera translates and keeps its eye on the panel plane, so panels stay steady while the world slides behind them.

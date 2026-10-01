@@ -1,7 +1,10 @@
 import { useEffect } from 'react'
 import { MotionConfig } from 'motion/react'
 import { Stage } from './scene/Stage'
-import { DevBar } from './ui/DevBar'
+import { Shell } from './ui/Shell'
+import { ReviewMenu } from './ui/ReviewMenu'
+import { installWorldTap } from './glass/gaze'
+import { measureRest, panels } from './glass/registry'
 import { PerfMeter } from './perf/PerfMeter'
 import { useHeadInput } from './head/headPose'
 import { useApp } from './state/store'
@@ -10,7 +13,19 @@ import { THEMES } from './theme/themes'
 export function App() {
   const theme = useApp(s => s.theme)
   const reducedMotion = useApp(s => s.reducedMotion)
+  const typePair = useApp(s => s.typePair)
   useHeadInput()
+
+  useEffect(() => { document.documentElement.dataset.type = typePair }, [typePair])
+
+  // Panels re-measure when the window or the fonts change their layout.
+  useEffect(() => {
+    const all = () => panels.forEach(measureRest)
+    window.addEventListener('resize', all)
+    document.fonts?.ready.then(all)
+    const off = installWorldTap()
+    return () => { window.removeEventListener('resize', all); off() }
+  }, [])
 
   useEffect(() => {
     const root = document.documentElement
@@ -32,10 +47,11 @@ export function App() {
   return (
     <MotionConfig reducedMotion={reducedMotion ? 'always' : 'never'}>
       <Stage />
-      <main className="overlay">
+      <main className="overlay" data-overlay-root>
         <h1 className="sr-only">Claude, July 8, 2034, seen through AR glasses</h1>
+        <Shell />
       </main>
-      <DevBar />
+      <ReviewMenu />
       <PerfMeter />
     </MotionConfig>
   )
