@@ -49,6 +49,15 @@ export function ReviewMenu() {
                 : 'Smooth fades and slides only: no lensing, flights, auras or model transitions. Glass ripples still answer your touch.'}</p>
             </Group>
 
+            <Group label="Quality">
+              {(['auto', 'high', 'low'] as const).map(q => (
+                <Option key={q} on={s.quality === q} onClick={() => s.setQuality(q)} layoutId="pill-quality">
+                  {q === 'auto' ? `Auto · ${TIER_NAMES[s.tier]}` : TIER_NAMES[q]}
+                </Option>
+              ))}
+              <p className="review-note">Auto lowers resolution, then glass samples, depth of field and bloom, if frames run long. Low also uses the 720p city loop.</p>
+            </Group>
+
             <Group label="Theme">
               {THEME_ORDER.map(id => (
                 <Option key={id} on={s.theme === id} onClick={() => s.setTheme(id)} layoutId="pill-theme">
@@ -77,8 +86,14 @@ export function ReviewMenu() {
               <Toggle on={s.focusPinned} onClick={() => s.setFocusPinned(!s.focusPinned)}>Hold focus</Toggle>
               <Toggle on={s.headMotion} onClick={() => s.setHeadMotion(!s.headMotion)}>Head motion</Toggle>
               <Toggle on={s.videoPlaying} onClick={() => s.setVideoPlaying(!s.videoPlaying)}>City loop</Toggle>
-              <Toggle on={s.reducedMotion} onClick={() => s.setReducedMotion(!s.reducedMotion)}>Reduce motion</Toggle>
               <Toggle on={s.perfOpen} onClick={() => s.setPerfOpen(!s.perfOpen)}>Perf</Toggle>
+            </Group>
+
+            <Group label="Accessibility">
+              <Toggle on={s.reducedMotion} onClick={() => s.setReducedMotion(!s.reducedMotion)}>Reduce motion</Toggle>
+              <Toggle on={s.contrast} onClick={() => s.setContrast(!s.contrast)}>Increase contrast</Toggle>
+              <Toggle on={s.largeText} onClick={() => s.setLargeText(!s.largeText)}>Larger text</Toggle>
+              <p className="review-note">Contrast puts a solid backing behind text and follows your system setting. Esc closes sheets; Tab first offers a skip to the main window.</p>
             </Group>
 
             <Group label="Distance">
@@ -96,6 +111,8 @@ export function ReviewMenu() {
     </div>
   )
 }
+
+const TIER_NAMES = { high: 'High', balanced: 'Balanced', low: 'Low' } as const
 
 function Group({ label, children }: { label: string; children: React.ReactNode }) {
   return (

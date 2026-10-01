@@ -91,7 +91,7 @@ function Msg({ m, live }: { m: Message; live: boolean }) {
 function ClipCard() {
   return (
     <motion.div className="clip" initial={{ opacity: 0, y: 10, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={SPRING}>
-      <div className="clip-art" aria-label="Warehouse simulation clip, 20 seconds">
+      <div className="clip-art" role="img" aria-label="Warehouse simulation clip, 20 seconds">
         <svg viewBox="0 0 260 146" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
           <defs>
             <linearGradient id="floor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#3a352f" /><stop offset="1" stopColor="#57504a" /></linearGradient>

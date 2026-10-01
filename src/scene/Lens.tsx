@@ -10,6 +10,7 @@ import { gravity } from './gravity'
 import { walk } from '../head/headPose'
 import type { Vector2, Vector4 } from 'three'
 import { useApp } from '../state/store'
+import { useTier } from '../perf/quality'
 import { THEMES } from '../theme/themes'
 import { focus } from './focus'
 
@@ -23,6 +24,7 @@ const MAX_BOKEH = 7
 
 export function Lens() {
   const size = useThree(s => s.size)
+  const tier = useTier()
   const dof = useRef<DepthOfFieldEffect>(null)
   const bloom = useRef<BloomEffect>(null)
   const lens = useMemo(() => new LensEffect(), [])
@@ -68,8 +70,9 @@ export function Lens() {
 
   return (
     <EffectComposer multisampling={0} frameBufferType={HalfFloatType} enableNormalPass={false}>
-      <DepthOfField ref={dof} worldFocusDistance={FOCUS_DISTANCE} worldFocusRange={8} bokehScale={0} resolutionScale={0.5} />
-      <Bloom ref={bloom} mipmapBlur intensity={0.4} luminanceThreshold={0.78} luminanceSmoothing={0.22} radius={0.72} />
+      {/* Low quality drops depth of field (the glass still blurs what it shows) and bloom. */}
+      {tier.dof && <DepthOfField ref={dof} worldFocusDistance={FOCUS_DISTANCE} worldFocusRange={8} bokehScale={0} resolutionScale={0.5} />}
+      {tier.bloom && <Bloom ref={bloom} mipmapBlur intensity={0.4} luminanceThreshold={0.78} luminanceSmoothing={0.22} radius={0.72} />}
       <primitive object={trans} dispose={null} />
       <primitive object={lens} dispose={null} />
     </EffectComposer>

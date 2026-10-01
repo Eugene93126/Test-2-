@@ -31,7 +31,7 @@ export function Home() {
     <div className="home" data-scroll>
       <div className="devices">
         <div className="devices-head">
-          <span className="eyebrow">Approved devices</span>
+          <h3 className="eyebrow">Approved devices</h3>
           <span className="draw">Drawing now <b>{draw.toFixed(2)} kW</b></span>
         </div>
         <ul className="device-list">
@@ -75,7 +75,7 @@ export function Home() {
         <Tonight on={on} />
         <div className="dock-card">
           <div>
-            <span className="eyebrow">Pantheon home dock</span>
+            <h3 className="eyebrow">Pantheon home dock</h3>
             <p className="dock-copy">Robot handoff from Odyssey is in pilot in Ohio and Arizona only. Chicago isn’t covered yet.</p>
           </div>
           <button className="pill-btn" disabled={waitlist} onClick={() => setWaitlist(true)}>{waitlist ? 'On the waitlist' : 'Join the waitlist'}</button>
@@ -98,7 +98,7 @@ function Ledger({ now, claudeKJ }: { now: number; claudeKJ: number }) {
 
   return (
     <div className="ledger">
-      <span className="eyebrow">Household energy ledger · today</span>
+      <h3 className="eyebrow">Household energy ledger · today</h3>
       <div className="ledger-head">
         <span className="big-num"><span className="num">{TODAY_KWH.toFixed(1)}</span><span className="unit">kWh · ${TODAY_COST.toFixed(2)}</span></span>
         <span className="saved">Saved ${SAVED.toFixed(2)} by moving the car, dishwasher and cooling off-peak</span>
@@ -142,7 +142,7 @@ function Tonight({ on }: { on: Record<DeviceId, boolean> }) {
   ].filter(Boolean) as { id: string; at: string; what: string; price: number }[]
   return (
     <div className="tonight">
-      <span className="eyebrow">Tonight, on cheap power</span>
+      <h3 className="eyebrow">Tonight, on cheap power</h3>
       <ul className="plan">
         <AnimatePresence initial={false} mode="popLayout">
           {plan.map(p => (

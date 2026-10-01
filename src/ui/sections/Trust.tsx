@@ -28,7 +28,7 @@ export function Trust() {
     <div className="trust" data-scroll>
       <div className="trust-col">
         <section className="trust-card identity">
-          <span className="eyebrow">Signed identity</span>
+          <h3 className="eyebrow">Signed identity</h3>
           <span className="trust-title">Active on glasses and puck</span>
           <div className="keys" aria-hidden="true">
             <span className="key"><Glasses />Glasses</span>
@@ -38,9 +38,9 @@ export function Trust() {
           <p className="trust-copy">Your bank, the court portal and your landlord’s agent require a hardware signature. Voice and face alone unlock nothing.</p>
         </section>
         <section className="trust-card">
-          <span className="eyebrow">Family safe word</span>
+          <h3 className="eyebrow">Family safe word</h3>
           <span className="trust-title">Set · shared with 4 people</span>
-          <div className="family" aria-label="Shared with Mom, Dad, Leila and Grandma">
+          <div className="family" role="img" aria-label="Shared with Mom, Dad, Leila and Grandma">
             {['M', 'D', 'L', 'G'].map((f, i) => <span key={f} className="fam" style={{ zIndex: 4 - i }}>{f}</span>)}
           </div>
           <p className="trust-copy">Last used 3 weeks ago, during a suspicious call. The word itself is never stored by Claude.</p>
@@ -50,7 +50,7 @@ export function Trust() {
       <div className="trust-col">
         <Verify />
         <section className="trust-card alerts">
-          <span className="eyebrow">Alerts</span>
+          <h3 className="eyebrow">Alerts</h3>
           <ul className="alert-list">
             {ALERTS.map((a, i) => (
               <motion.li key={a.when} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ ...SPRING, delay: 0.1 + i * 0.05 }}>
@@ -71,7 +71,7 @@ function Callbacks() {
   return (
     <section className="trust-card">
       <div className="card-row">
-        <span className="eyebrow">Callbacks</span>
+        <h3 className="eyebrow">Callbacks</h3>
         <button className="switch" role="switch" aria-checked={on} aria-label="Callback on a second channel" onClick={() => setOn(v => !v)}>
           <span className="switch-track"><motion.span className="switch-knob" animate={{ x: on ? 16 : 0 }} transition={SPRING} /></span>
         </button>
@@ -100,7 +100,7 @@ function Verify() {
 
   return (
     <section className="trust-card verify">
-      <span className="eyebrow">Verify a recording</span>
+      <h3 className="eyebrow">Verify a recording</h3>
       <div className="clip-check">
         <span className={`thumb${scanning ? ' scanning' : ''}${done ? ' flagged' : ''}`}>
           <Art id="alderman" />

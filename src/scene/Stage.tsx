@@ -12,6 +12,7 @@ import { Base64HDRLoader } from './hdri'
 import { head, stepHead, walk } from '../head/headPose'
 import { stepGaze } from '../gaze/quantum'
 import { useApp } from '../state/store'
+import { TIERS, stepTier } from '../perf/quality'
 
 const BASE = import.meta.env.BASE_URL
 
@@ -51,19 +52,31 @@ function DuskEnvironment() {
 }
 
 export function Stage() {
-  const [dpr, setDpr] = useState(() => Math.min(window.devicePixelRatio, 1.5))
+  const tier = useApp(s => s.tier)
+  const cap = Math.min(window.devicePixelRatio, TIERS[tier].dpr)
+  const [dpr, setDpr] = useState(cap)
+  const [visible, setVisible] = useState(!document.hidden)
+  useEffect(() => setDpr(d => Math.min(d, cap)), [cap])
+  // Nothing renders in a background tab.
+  useEffect(() => {
+    const on = () => setVisible(!document.hidden)
+    document.addEventListener('visibilitychange', on)
+    return () => document.removeEventListener('visibilitychange', on)
+  }, [])
   return (
     <Canvas
       className="stage"
-      dpr={dpr}
+      dpr={Math.min(dpr, cap)}
+      frameloop={visible ? 'always' : 'never'}
       flat
       gl={{ antialias: false, alpha: false, stencil: false, powerPreference: 'high-performance' }}
       camera={{ fov: 38, near: 0.1, far: 200, position: [0, 0, 0] }}
       aria-hidden="true"
     >
+      {/* Long frames lower the resolution first, then (in Auto) the quality tier. */}
       <PerformanceMonitor
-        onDecline={() => setDpr(d => Math.max(1, d - 0.25))}
-        onIncline={() => setDpr(d => Math.min(window.devicePixelRatio, 1.75, d + 0.25))}
+        onDecline={() => setDpr(d => { if (d > 1) return Math.max(1, d - 0.25); stepTier(-1); return d })}
+        onIncline={() => setDpr(d => { if (d < cap) return Math.min(cap, d + 0.25); stepTier(1); return d })}
         flipflops={4}
       />
       <HeadRig />

@@ -86,9 +86,9 @@ export function VoiceOrb() {
     if (!m) return
     const st = state.current
     const el = orbAnchor.el
-    const { section, modal } = useApp.getState()
+    const { section, modal, glances } = useApp.getState()
     const phase = useVoice.getState().phase
-    const show = !!el && el.isConnected && section === 'chat' && !modal
+    const show = !!el && el.isConnected && section === 'chat' && !modal && !glances
     const h = Math.min(dt, 1 / 30)
     st.pv += (300 * ((show ? 1 : 0) - st.presence) - 30 * st.pv) * h
     st.presence = Math.max(0, st.presence + st.pv * h)

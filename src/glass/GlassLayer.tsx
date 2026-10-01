@@ -11,15 +11,13 @@ import { focus, stepFocus } from '../scene/focus'
 import { mergeAmount } from '../scene/transitions'
 import { commitWells, gravity, massOf, pullOn } from '../scene/gravity'
 import { useApp } from '../state/store'
+import { TIERS, type TierSpec } from '../perf/quality'
 
-const coarse = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches
-const SAMPLES = coarse ? 3 : 5
-const BUFFER_SCALE = coarse ? 0.6 : 0.85
 
 interface Slab { mesh: THREE.Mesh; mat: THREE.MeshPhysicalMaterial & { uniforms: Record<string, THREE.IUniform> }; u: SlabUniforms; geo: { w: number; h: number; r: number; at: number } }
 const slabs = new Map<string, Slab>()
 
-function GlassSlab({ id, buffer }: { id: string; buffer: THREE.Texture }) {
+function GlassSlab({ id, buffer, spec }: { id: string; buffer: THREE.Texture; spec: TierSpec }) {
   const mesh = useRef<THREE.Mesh>(null)
   const mat = useRef<Slab['mat']>(null)
   const u = useMemo(() => slabUniforms(), [])
@@ -28,7 +26,7 @@ function GlassSlab({ id, buffer }: { id: string; buffer: THREE.Texture }) {
   // Child refs are attached before this runs, and before the first frame renders.
   useLayoutEffect(() => {
     if (!mesh.current || !mat.current) return
-    patchGlass(mat.current, u)
+    patchGlass(mat.current, u, spec)
     slabs.set(id, { mesh: mesh.current, mat: mat.current, u, geo: { w: 0, h: 0, r: 0, at: -1 } })
     return () => {
       slabs.get(id)?.mesh.geometry.dispose()
@@ -44,7 +42,7 @@ function GlassSlab({ id, buffer }: { id: string; buffer: THREE.Texture }) {
         buffer={buffer}
         resolution={1}
         backsideResolution={1}
-        samples={SAMPLES}
+        samples={spec.samples}
         transmission={1}
         thickness={0.4}
         ior={1.46}
@@ -70,6 +68,7 @@ function GlassSlab({ id, buffer }: { id: string; buffer: THREE.Texture }) {
 const tmp = new THREE.Vector3()
 const tmpC = new THREE.Color()
 const raster = { z: 0 }
+const fgList: (THREE.Object3D | boolean)[] = []
 
 /** Objects in front of the glass (the voice orb): left out of what the glass refracts. */
 export const foreground = new Set<THREE.Object3D>()
@@ -80,8 +79,10 @@ export function GlassLayer() {
   const gl = useThree(s => s.gl)
   const size = useThree(s => s.size)
   const dpr = useThree(s => s.viewport.dpr)
-  const bw = Math.max(2, Math.round(size.width * dpr * BUFFER_SCALE))
-  const bh = Math.max(2, Math.round(size.height * dpr * BUFFER_SCALE))
+  const tier = useApp(s => s.tier)
+  const spec = TIERS[tier]
+  const bw = Math.max(2, Math.round(size.width * dpr * spec.buffer))
+  const bh = Math.max(2, Math.round(size.height * dpr * spec.buffer))
   const sharp = useFBO(bw, bh, { type: THREE.HalfFloatType, samples: 0, depthBuffer: true })
   const blurred = useFBO(bw, bh, { type: THREE.HalfFloatType, samples: 0, depthBuffer: false })
   // Second buffer for overlay glass: the world plus the panels behind the overlay.
@@ -135,7 +136,8 @@ export function GlassLayer() {
     const g = group.current
     if (!g || slabs.size === 0) return
     g.visible = false
-    const fgVisible = [...foreground].map(o => { const v = o.visible; o.visible = false; return v })
+    fgList.length = 0
+    for (const o of foreground) { fgList.push(o, o.visible); o.visible = false }
     gl.setRenderTarget(sharp)
     gl.clear()
     gl.render(state.scene, cam)
@@ -165,12 +167,13 @@ export function GlassLayer() {
       }
     }
     gl.setRenderTarget(null)
-    ;[...foreground].forEach((o, i) => { o.visible = fgVisible[i] })
+    for (let i = 0; i < fgList.length; i += 2) (fgList[i] as THREE.Object3D).visible = fgList[i + 1] as boolean
   }, -100)
 
   return (
     <group ref={group}>
-      {ids.map(id => <GlassSlab key={id} id={id} buffer={sharp.texture} />)}
+      {/* A new tier rebuilds the slabs: sample counts are compiled into the shader. */}
+      {ids.map(id => <GlassSlab key={`${id}-${tier}`} id={id} buffer={sharp.texture} spec={spec} />)}
     </group>
   )
 }

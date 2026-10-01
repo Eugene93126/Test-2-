@@ -20,6 +20,8 @@ interface Props {
   as?: 'div' | 'section' | 'aside' | 'header' | 'nav'
   /** Overlay glass refracts the panels behind it, not just the world. */
   overlay?: boolean
+  /** DOM id, for links that point at the panel. */
+  domId?: string
   role?: string
   children: ReactNode
 }
@@ -27,7 +29,7 @@ interface Props {
 // The DOM half of a glass panel. It lays out with plain CSS and holds the
 // content; GlassLayer draws the glass slab behind it and moves this element
 // to stay glued to the slab as the head moves.
-export function GlassPanel({ id, depth = 'mid', radius = 24, focusable = false, delay = 0, className = '', style, label, as = 'div', overlay = false, role, children }: Props) {
+export function GlassPanel({ id, depth = 'mid', radius = 24, focusable = false, delay = 0, className = '', style, label, as = 'div', overlay = false, role, domId, children }: Props) {
   const ref = useRef<HTMLDivElement>(null)
   // Inside AnimatePresence, sink back into the world before unmounting.
   const [isPresent, safeToRemove] = usePresence()
@@ -86,8 +88,9 @@ export function GlassPanel({ id, depth = 'mid', radius = 24, focusable = false, 
     <Tag
       ref={ref as never}
       data-panel={id}
+      id={domId}
       aria-label={label}
-      role={role}
+      role={role ?? (label && as === 'div' ? 'group' : undefined)}
       className={`panel ${className}`}
       style={{ borderRadius: radius, ...style }}
       onPointerEnter={e => {

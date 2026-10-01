@@ -38,9 +38,9 @@ export const THEMES: Record<ThemeId, Theme> = {
     ui: {
       '--ink': SLATE,
       '--ink-2': '#5E5D59',
-      '--ink-3': '#87867F',
+      '--ink-3': '#64645F',
       '--accent': CLAY,
-      '--accent-ink': '#A9502D',
+      '--accent-ink': '#A04B2A',
       '--surface': 'rgba(250, 249, 245, 0.74)',
       '--surface-strong': 'rgba(250, 249, 245, 0.88)',
       '--edge': 'rgba(255, 255, 255, 0.9)',
@@ -60,7 +60,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     ui: {
       '--ink': '#F0EEE6',
       '--ink-2': '#B0AEA5',
-      '--ink-3': '#87867F',
+      '--ink-3': '#95948C',
       '--accent': CLAY,
       '--accent-ink': '#F0A27F',
       '--surface': 'rgba(28, 28, 26, 0.62)',
@@ -82,7 +82,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     ui: {
       '--ink': IVORY,
       '--ink-2': 'rgba(250, 249, 245, 0.8)',
-      '--ink-3': 'rgba(250, 249, 245, 0.56)',
+      '--ink-3': 'rgba(250, 249, 245, 0.68)',
       '--accent': CLAY,
       '--accent-ink': '#FFC2A6',
       '--surface': 'rgba(255, 255, 255, 0.12)',
@@ -104,7 +104,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     ui: {
       '--ink': '#F7E9DE',
       '--ink-2': '#DCC0AD',
-      '--ink-3': '#A88C7A',
+      '--ink-3': '#AC917F',
       '--accent': '#E0855E',
       '--accent-ink': '#F7B08D',
       '--surface': 'rgba(52, 30, 24, 0.56)',

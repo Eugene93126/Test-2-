@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { GlassPanel } from '../glass/GlassPanel'
 import { SECTION_ORDER, useApp, type SectionId } from '../state/store'
@@ -12,10 +12,20 @@ import { Home } from './sections/Home'
 import { Memory } from './sections/Memory'
 import { Trust } from './sections/Trust'
 import { SPRING } from './motion'
+import { announce } from './Announcer'
 
 // The main window at the mid depth, where your eyes rest. Switching sections
 // morphs the title and slides the content in the direction you moved along
 // the Dock; only transforms and opacity animate.
+
+function useChanged<T>(value: T, run: () => void) {
+  const prev = useRef(value)
+  useEffect(() => {
+    if (prev.current === value) return
+    prev.current = value
+    run()
+  })
+}
 
 const SECTION_VIEWS: Record<SectionId, () => React.ReactNode> = {
   chat: () => <Chat />, circle: () => <Circle />, world: () => <World />,
@@ -39,8 +49,12 @@ export function MainWindow() {
   const dir = nav.dir
   const s = SECTIONS[section]
 
+  // Tell screen readers what changed; skip the first render.
+  useChanged(section, () => announce(SECTIONS[section].title))
+  useChanged(model.id, () => announce(`Now using ${model.name}`))
+
   return (
-    <GlassPanel id="main" depth="mid" radius={30} delay={0.12} focusable className={`main${modal ? ' dimmed' : ''}`} as="section" label={s.title}>
+    <GlassPanel id="main" domId="main-window" depth="mid" radius={30} delay={0.12} focusable className={`main${modal ? ' dimmed' : ''}`} as="section" label={s.title}>
       <div className="main-head">
         <div className="title-stack">
           <AnimatePresence mode="popLayout" initial={false} custom={dir}>

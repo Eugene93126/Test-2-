@@ -9,9 +9,14 @@ export type ModelId = 'fable' | 'mythos' | 'pantheon2' | 'odyssey' | 'pantheon1'
 export type Modal = 'models' | 'dock' | null
 /** Spatial: gravity lensing, flights, auras and per-model transitions. Standard: plain smooth fades and slides. */
 export type Fx = 'spatial' | 'standard'
+/** Rendering tiers; Auto starts at High on a laptop, Balanced on a phone. */
+export type Tier = 'high' | 'balanced' | 'low'
+export type QualitySetting = 'auto' | 'high' | 'low'
 export const SECTION_ORDER: SectionId[] = ['chat', 'circle', 'world', 'code', 'home', 'memory', 'trust']
 
 const prefersReduced = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+const mq = (q: string) => typeof window !== 'undefined' && !!window.matchMedia?.(q).matches
+export const prefersContrast = () => mq('(prefers-contrast: more)') || mq('(prefers-reduced-transparency: reduce)')
 // Review links can set the starting state: ?theme=dusk&focus=1&perf
 const q = new URLSearchParams(location.search)
 const qTheme = q.get('theme') as ThemeId | null
@@ -19,6 +24,10 @@ const startTheme: ThemeId = qTheme && THEME_ORDER.includes(qTheme) ? qTheme : 'g
 const FX_KEY = 'claude2034.fx'
 const storedFx = (() => { try { return localStorage.getItem(FX_KEY) } catch { return null } })()
 const startFx: Fx = (q.get('fx') ?? storedFx) === 'standard' ? 'standard' : 'spatial'
+export const coarsePointer = typeof window !== 'undefined' && !!window.matchMedia?.('(pointer: coarse)').matches
+export const autoTier: Tier = coarsePointer ? 'balanced' : 'high'
+const qQuality = q.get('quality')
+const startQuality: QualitySetting = qQuality === 'high' || qQuality === 'low' ? qQuality : 'auto'
 
 interface AppState {
   theme: ThemeId
@@ -37,6 +46,16 @@ interface AppState {
   setReducedMotion: (r: boolean) => void
   fx: Fx
   setFx: (f: Fx) => void
+  /** Solid backing behind text and stronger secondary ink (also follows the OS setting). */
+  contrast: boolean
+  setContrast: (c: boolean) => void
+  largeText: boolean
+  setLargeText: (l: boolean) => void
+  quality: QualitySetting
+  setQuality: (q: QualitySetting) => void
+  /** The tier in use right now (Auto moves it with the performance monitor). */
+  tier: Tier
+  setTier: (t: Tier) => void
   headMotion: boolean
   setHeadMotion: (h: boolean) => void
   gyro: GyroState
@@ -57,6 +76,9 @@ interface AppState {
   /** An overlay sheet that takes focus (the model picker, Dock customization). */
   modal: Modal
   setModal: (m: Modal) => void
+  /** Phones only: the glance cards take the main window's place. */
+  glances: boolean
+  setGlances: (g: boolean) => void
 }
 
 export const useApp = create<AppState>()(set => ({
@@ -74,6 +96,14 @@ export const useApp = create<AppState>()(set => ({
   setReducedMotion: reducedMotion => set({ reducedMotion }),
   fx: startFx,
   setFx: fx => { try { localStorage.setItem(FX_KEY, fx) } catch { /* private mode */ } set({ fx }) },
+  contrast: q.get('contrast') === 'more' || prefersContrast(),
+  setContrast: contrast => set({ contrast }),
+  largeText: q.get('text') === 'large',
+  setLargeText: largeText => set({ largeText }),
+  quality: startQuality,
+  setQuality: quality => set({ quality, tier: quality === 'auto' ? autoTier : quality }),
+  tier: startQuality === 'auto' ? autoTier : startQuality,
+  setTier: tier => set({ tier }),
   headMotion: true,
   setHeadMotion: headMotion => set({ headMotion }),
   gyro: 'unsupported',
@@ -95,6 +125,8 @@ export const useApp = create<AppState>()(set => ({
   setModel: model => set({ model }),
   modal: q.get('modal') === 'models' ? 'models' : null,
   setModal: modal => set({ modal }),
+  glances: false,
+  setGlances: glances => set({ glances }),
 }))
 
 /** Spatial effects are on: not reduced motion, and not the Standard setting. */

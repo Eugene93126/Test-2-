@@ -130,10 +130,14 @@ const FRAG_FINAL = /* glsl */ `
 
   // How bright is the real world right behind this point? (A small cross of
   // samples from the refraction buffer.)
+#ifdef GLASS_LITE_RIM
+  vec3 back = texture2D(buffer, suv).rgb;
+#else
   vec2 px = 6.0 / uResolution;
   vec3 back = texture2D(buffer, suv).rgb * 0.4
     + (texture2D(buffer, suv + vec2(px.x, 0.0)).rgb + texture2D(buffer, suv - vec2(px.x, 0.0)).rgb
      + texture2D(buffer, suv + vec2(0.0, px.y)).rgb + texture2D(buffer, suv - vec2(0.0, px.y)).rgb) * 0.15;
+#endif
   float backLum = dot(back, vec3(0.2126, 0.7152, 0.0722));
   float bright = smoothstep(0.03, 0.4, backLum);
 
@@ -178,20 +182,21 @@ const FRAG_FINAL = /* glsl */ `
 `
 
 /** Patch a MeshTransmissionMaterial instance once, before its first compile. */
-export function patchGlass(mat: THREE.Material & { userData: Record<string, unknown> }, uniforms: SlabUniforms) {
+export function patchGlass(mat: THREE.Material & { userData: Record<string, unknown> }, uniforms: SlabUniforms, spec: { samples: number; liteRim: boolean }) {
   if (mat.userData.glassPatched) return
   const base = mat.onBeforeCompile
   mat.onBeforeCompile = (shader, renderer) => {
     base.call(mat, shader, renderer)
     Object.assign(shader.uniforms, sharedGlass, uniforms)
     shader.vertexShader = VERT_PARS + shader.vertexShader.replace('#include <begin_vertex>', VERT_MAIN)
-    shader.fragmentShader = FRAG_PARS + shader.fragmentShader
+    shader.fragmentShader = (spec.liteRim ? '#define GLASS_LITE_RIM\n' : '') + FRAG_PARS + shader.fragmentShader
       .replace('#include <normal_fragment_maps>', FRAG_NORMAL)
       .replace('#include <opaque_fragment>', FRAG_FINAL)
       .replace('if (chromaticAberration == 0.0) {', 'if (gCA < 0.0005) {')
       .replace('float aberration = chromaticAberration * sampleProgress;', 'float aberration = gCA * sampleProgress;')
   }
-  mat.customProgramCacheKey = () => 'glass-slab-v1'
+  // Programs differ by sample count and rim taps, so the cache key must too.
+  mat.customProgramCacheKey = () => `glass-slab-v2-${spec.samples}-${spec.liteRim ? 1 : 5}`
   mat.userData.glassPatched = true
   mat.needsUpdate = true
 }

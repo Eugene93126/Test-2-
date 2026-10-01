@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { AnimatePresence, animate, motion, useSpring, type MotionValue } from 'motion/react'
 import { GlassPanel } from '../glass/GlassPanel'
 import { addRipple, panels } from '../glass/registry'
@@ -17,8 +17,9 @@ const MAGNET_MAX = 9 // px
 interface Magnet { x: MotionValue<number>; y: MotionValue<number>; s: MotionValue<number>; el: HTMLElement | null }
 
 export function goToSection(id: SectionId) {
-  const { section, setSection, setModal } = useApp.getState()
+  const { section, setSection, setModal, setGlances } = useApp.getState()
   setModal(null)
+  setGlances(false)
   if (id === section) return
   setSection(id)
   // A ripple rolls up through the main window from the Dock, and the window
@@ -113,6 +114,9 @@ function DockItem({ id, current, labels, magnets }: { id: SectionId; current: bo
 }
 
 function DockSettings() {
+  const ref = useRef<HTMLDivElement>(null)
+  // Focus moves into the sheet when it opens; Escape (App) brings it back.
+  useEffect(() => { ref.current?.querySelector<HTMLElement>('.pin')?.focus({ preventScroll: true }) }, [])
   const pinned = useApp(s => s.pinned)
   const togglePin = useApp(s => s.togglePin)
   const labels = useApp(s => s.dockLabels)
@@ -120,7 +124,7 @@ function DockSettings() {
   return (
     <GlassPanel id="dock-settings" depth="sheet" overlay radius={22} className="dock-settings" label="Customize Dock" role="dialog">
       <span className="sheet-label">Pin to Dock</span>
-      <div className="pin-row">
+      <div className="pin-row" ref={ref}>
         {SECTION_ORDER.map(id => {
           const on = pinned.includes(id)
           return (

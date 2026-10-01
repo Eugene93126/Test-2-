@@ -3,6 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { head } from '../head/headPose'
 import { useApp } from '../state/store'
+import { TIERS } from '../perf/quality'
 import { THEMES } from '../theme/themes'
 
 // The real world: a looping video of the city with a matching depth map. The
@@ -58,6 +59,8 @@ void main(){
   gl_FragColor = vec4(c, 1.0);
 }`
 
+const loopSrc = (small: boolean) => `${BASE}media/city-loop${small ? '-720' : ''}.mp4`
+
 function makeVideo(src: string) {
   const v = document.createElement('video')
   v.src = src
@@ -77,7 +80,7 @@ export function CityBackdrop() {
   const videoPlaying = useApp(s => s.videoPlaying)
 
   const { video, uniforms, material } = useMemo(() => {
-    const video = makeVideo(`${BASE}media/city-loop.mp4`)
+    const video = makeVideo(loopSrc(TIERS[useApp.getState().tier].video720))
     const loader = new THREE.TextureLoader()
     const poster = loader.load(`${BASE}media/city-poster.jpg`)
     poster.colorSpace = THREE.SRGBColorSpace
@@ -103,6 +106,27 @@ export function CityBackdrop() {
     const material = new THREE.ShaderMaterial({ vertexShader: vertex, fragmentShader: fragment, uniforms, depthWrite: true, toneMapped: false })
     return { video, uniforms, material }
   }, [])
+
+  // Phones and lower tiers stream the 720p loop: a quarter of the pixels to decode and upload each frame.
+  const video720 = TIERS[useApp(s => s.tier)].video720
+  useEffect(() => {
+    const src = loopSrc(video720)
+    if (video.src.endsWith(src.replace(BASE, '')) || !video.src) return
+    const t = video.currentTime, wasPlaying = !video.paused
+    video.src = src
+    video.currentTime = t
+    if (wasPlaying) video.play().catch(() => {})
+  }, [video, video720])
+
+  // A background tab doesn't need the city.
+  useEffect(() => {
+    const on = () => {
+      if (document.hidden) video.pause()
+      else if (useApp.getState().videoPlaying) video.play().catch(() => {})
+    }
+    document.addEventListener('visibilitychange', on)
+    return () => document.removeEventListener('visibilitychange', on)
+  }, [video])
 
   useEffect(() => {
     const ready = () => { uniforms.uVideoReady.value = 1 }

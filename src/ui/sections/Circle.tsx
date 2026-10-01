@@ -133,7 +133,7 @@ function AgentDetail({ agent, reduced }: { agent: Agent; reduced: boolean }) {
         </div>
       </div>
       <SkillTree agent={agent} reduced={reduced} />
-      <div className="eyebrow">Questions from last night</div>
+      <h3 className="eyebrow">Questions from last night</h3>
       <ul className="questions">
         {agent.questions.map((q, i) => (
           <motion.li key={q} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ ...SPRING, delay: 0.35 + i * 0.06 }}>{q}</motion.li>
@@ -296,7 +296,7 @@ function Debate({ reduced }: { reduced: boolean }) {
         <span className="eyebrow">Round {round + 1} of {DEBATE.rounds.length}</span>
         <h3 className="debate-topic">{DEBATE.topic}</h3>
       </div>
-      <div className="duel" aria-label={`Judge leans ${lean > 0.05 ? 'toward Brian' : lean < -0.05 ? 'toward Ada' : 'to neither'}`}>
+      <div className="duel" role="img" aria-label={`Judge leans ${lean > 0.05 ? 'toward Brian' : lean < -0.05 ? 'toward Ada' : 'to neither'}`}>
         <span className={`avatar${speaker === 'brian' ? ' speaking' : ''}`} style={{ background: brian.color, '--agent': brian.color } as React.CSSProperties}>B</span>
         <span className="duel-track">
           <span className="duel-mid" />

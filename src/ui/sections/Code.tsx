@@ -44,7 +44,7 @@ export function Code() {
   return (
     <div className="code">
       <div className="code-bar">
-        <span className="repo">harbor-ledger</span>
+        <h3 className="repo">harbor-ledger</h3>
         <span className="eyebrow">swarm of 7 · Fable Duo 4.1</span>
         <span className={`status-pill${running ? ' live' : ''}`}>
           <span className="sdot" />{running ? `Replaying at ${Math.round((REAL_MINUTES * 60) / REPLAY)}×` : 'Signed · ready for review'}
