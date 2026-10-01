@@ -19,6 +19,12 @@ export interface HeadPose {
 
 export const head: HeadPose = { x: 0, y: 0, vx: 0, vy: 0, tx: 0, ty: 0, amount: 1 }
 
+/** Walking toward (negative) or away from (positive) the interface, meters. */
+export const walk = { z: 0, v: 0, target: 0, settledFor: 0 }
+const WALK_MIN = -0.9, WALK_MAX = 1.1
+export function nudgeWalk(dz: number) { walk.target = Math.max(WALK_MIN, Math.min(WALK_MAX, walk.target + dz)) }
+export function resetWalk() { walk.target = 0 }
+
 // A slightly underdamped spring: weighty, settles without wobble.
 const STIFFNESS = 90
 const DAMPING = 17
@@ -36,6 +42,10 @@ export function stepHead(dt: number, enabled: boolean, reduced: boolean, time: n
   head.vy += (STIFFNESS * (ty - head.y) - DAMPING * head.vy) * h
   head.x += head.vx * h
   head.y += head.vy * h
+  // Walking has weight too: a slower spring.
+  walk.v += (60 * (walk.target - walk.z) - 14 * walk.v) * h
+  walk.z += walk.v * h
+  walk.settledFor = Math.abs(walk.v) < 0.004 && Math.abs(walk.target - walk.z) < 0.002 ? walk.settledFor + dt : 0
 }
 
 /** Wires pointer and device-orientation input to the head target. */
@@ -62,6 +72,23 @@ export function useHeadInput() {
       }
     }
     const onLeave = () => { head.tx = 0; head.ty = 0; lock = null }
+    // Scroll or pinch to walk closer to the interface or step back.
+    const onWheel = (e: WheelEvent) => {
+      if ((e.target as Element | null)?.closest('[data-review]')) return
+      nudgeWalk(e.deltaY * 0.0012)
+    }
+    let pinch = 0
+    const touches = (e: TouchEvent) => e.touches.length === 2 ? Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY) : 0
+    const onTouchStart = (e: TouchEvent) => { pinch = touches(e) }
+    const onTouchMove = (e: TouchEvent) => {
+      const d = touches(e)
+      if (!d || !pinch) return
+      nudgeWalk((pinch - d) * 0.004)
+      pinch = d
+    }
+    window.addEventListener('wheel', onWheel, { passive: true })
+    window.addEventListener('touchstart', onTouchStart, { passive: true })
+    window.addEventListener('touchmove', onTouchMove, { passive: true })
     window.addEventListener('pointermove', onPointer, { passive: true })
     document.addEventListener('pointerleave', onLeave)
 
@@ -72,6 +99,9 @@ export function useHeadInput() {
     return () => {
       window.removeEventListener('pointermove', onPointer)
       document.removeEventListener('pointerleave', onLeave)
+      window.removeEventListener('wheel', onWheel)
+      window.removeEventListener('touchstart', onTouchStart)
+      window.removeEventListener('touchmove', onTouchMove)
     }
   }, [setGyro])
 }

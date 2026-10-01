@@ -26,6 +26,10 @@ export interface PanelEntry {
   rest: { x: number; y: number; w: number; h: number }
   /** 0..1, entrance and exit. */
   presence: MotionValue<number>
+  /** Flight through depth: 0 is far behind its resting place, 1 at rest; a
+   *  bouncy spring overshoots past 1 toward you. Its speed is the window's
+   *  momentum, which bends space around it (scene/gravity.ts). */
+  fly: MotionValue<number>
   /** Pointer over the panel, in panel-local meters (origin at center, y up). */
   pointer: { x: number; y: number }
   hoverTarget: number
@@ -38,6 +42,10 @@ export interface PanelEntry {
   size: { w: number; h: number; vw: number; vh: number }
   /** Last DOM transform written, to skip redundant style writes. */
   lastTransform: string
+  /** On-screen scale relative to the layout box (distance mapping reads it). */
+  apparentScale: number
+  /** Text stroke (CSS px) that keeps type weight steady as you step back. */
+  stroke: number
 }
 
 interface Registry {
@@ -71,12 +79,15 @@ export function createEntry(id: string, el: HTMLElement, depth: number, radius: 
     id, depth, radius, el, layer,
     rest: { x: 0, y: 0, w: 0, h: 0 },
     presence: motionValue(0),
+    fly: motionValue(1),
     pointer: { x: 0, y: 0 },
     hoverTarget: 0, hover: 0, hoverV: 0,
     ripples: [],
     world: { w: 0, h: 0, cx: 0, cy: 0 },
     size: { w: 0, h: 0, vw: 0, vh: 0 },
     lastTransform: '',
+    apparentScale: 1,
+    stroke: 0,
   }
 }
 

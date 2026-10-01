@@ -6,6 +6,9 @@ import { HalfFloatType } from 'three'
 import { LensEffect } from './effects/LensEffect'
 import { TransitionEffect, KIND_INDEX } from './effects/TransitionEffect'
 import { stepTransition, transition } from './transitions'
+import { gravity } from './gravity'
+import { walk } from '../head/headPose'
+import type { Vector2, Vector4 } from 'three'
 import { useApp } from '../state/store'
 import { THEMES } from '../theme/themes'
 import { focus } from './focus'
@@ -29,7 +32,11 @@ export function Lens() {
     const { theme, reducedMotion } = useApp.getState()
     const g = THEMES[theme].lens
     // The shared focus spring (stepped by the glass layer) drives the blur.
-    if (dof.current) dof.current.bokehScale = Math.max(0, focus.x) * MAX_BOKEH
+    if (dof.current) {
+      dof.current.bokehScale = Math.max(0, focus.x) * MAX_BOKEH
+      // Focal depth follows you as you walk toward or away from the panels.
+      dof.current.cocMaterial.worldFocusDistance = FOCUS_DISTANCE - walk.z
+    }
     const k = 1 - Math.exp(-dt * 3.2)
     if (bloom.current) bloom.current.intensity += (g.bloom - bloom.current.intensity) * k
     const u = lens.uniforms
@@ -46,6 +53,17 @@ export function Lens() {
     ;(tu.get('uTint')!.value as { set: (x: number, y: number, z: number) => void }).set(...transition.tint)
     const a = size.width / size.height
     ;(tu.get('uAspect')!.value as { set: (x: number, y: number) => void }).set(a, 1)
+
+    // Gravity wells (CSS px) to uv: y flips, sizes divide by the viewport.
+    const W = size.width, H = size.height
+    ;(['A', 'B'] as const).forEach((n, i) => {
+      const w = gravity.wells[i]
+      const v = tu.get(`uWell${n}`)!.value as Vector4
+      const r = tu.get(`uWell${n}R`)!.value as Vector2
+      if (!w) { r.set(0, 0); return }
+      v.set(w.cx / W, 1 - w.cy / H, w.hw / W, w.hh / H)
+      r.set(w.r / H, w.mass)
+    })
   })
 
   return (

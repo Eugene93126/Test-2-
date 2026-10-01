@@ -5,6 +5,7 @@ import { Shell } from './ui/Shell'
 import { ReviewMenu } from './ui/ReviewMenu'
 import { installWorldTap } from './glass/gaze'
 import { measureRest, panels } from './glass/registry'
+import { installGaze } from './gaze/quantum'
 import { PerfMeter } from './perf/PerfMeter'
 import { useHeadInput } from './head/headPose'
 import { useApp } from './state/store'
@@ -17,6 +18,7 @@ export function App() {
   useHeadInput()
 
   useEffect(() => { document.documentElement.dataset.type = typePair }, [typePair])
+  useEffect(() => { document.documentElement.dataset.motion = reducedMotion ? 'reduced' : 'full' }, [reducedMotion])
 
   // Panels re-measure when the window or the fonts change their layout.
   useEffect(() => {
@@ -24,7 +26,8 @@ export function App() {
     window.addEventListener('resize', all)
     document.fonts?.ready.then(all)
     const off = installWorldTap()
-    return () => { window.removeEventListener('resize', all); off() }
+    const offGaze = installGaze()
+    return () => { window.removeEventListener('resize', all); off(); offGaze() }
   }, [])
 
   useEffect(() => {

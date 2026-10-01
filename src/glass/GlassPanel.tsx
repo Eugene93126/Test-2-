@@ -45,6 +45,9 @@ export function GlassPanel({ id, depth = 'mid', radius = 24, focusable = false, 
     el.style.opacity = '0'
     const reduced = useApp.getState().reducedMotion
     const ctrl = animate(entry.presence, 1, reduced ? { duration: 0.35, delay: delay * 0.5 } : { ...SPRING, delay })
+    // Overlay windows fly in from deeper space with momentum and a few
+    // micro-bounces along Z (an underdamped spring).
+    if (overlay && !reduced) { entry.fly.set(0); animate(entry.fly, 1, { type: 'spring', stiffness: 300, damping: 14, mass: 1 }) }
     return () => {
       ro.disconnect()
       unsub()
@@ -71,6 +74,7 @@ export function GlassPanel({ id, depth = 'mid', radius = 24, focusable = false, 
     p.hoverTarget = 0
     const reduced = useApp.getState().reducedMotion
     const c = animate(p.presence, 0, reduced ? { duration: 0.18 } : { type: 'spring', stiffness: 420, damping: 38 })
+    if (!reduced) animate(p.fly, 0.35, { type: 'spring', stiffness: 300, damping: 22 })
     c.then(() => safeToRemove?.())
     return () => c.stop()
   }, [isPresent, safeToRemove, id])

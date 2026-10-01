@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useApp, type GlyphId, type TypePair } from '../state/store'
 import { THEMES, THEME_ORDER } from '../theme/themes'
-import { enableGyro, recenterGyro } from '../head/headPose'
+import { enableGyro, nudgeWalk, recenterGyro, resetWalk } from '../head/headPose'
 import { GlyphMark, GLYPH_NAMES } from './Glyph'
 import { SPRING } from './motion'
 
@@ -71,6 +71,13 @@ export function ReviewMenu() {
               <Toggle on={s.videoPlaying} onClick={() => s.setVideoPlaying(!s.videoPlaying)}>City loop</Toggle>
               <Toggle on={s.reducedMotion} onClick={() => s.setReducedMotion(!s.reducedMotion)}>Reduce motion</Toggle>
               <Toggle on={s.perfOpen} onClick={() => s.setPerfOpen(!s.perfOpen)}>Perf</Toggle>
+            </Group>
+
+            <Group label="Distance">
+              <button className="opt" onClick={() => nudgeWalk(0.35)}><span className="opt-content">Step back</span></button>
+              <button className="opt" onClick={() => nudgeWalk(-0.35)}><span className="opt-content">Step closer</span></button>
+              <button className="opt" onClick={() => resetWalk()}><span className="opt-content">Reset</span></button>
+              <p className="review-note">Scroll, or pinch with two fingers, to walk toward the glass or away from it. Focus and text weight follow you.</p>
             </Group>
           </motion.div>
         )}

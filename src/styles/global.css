@@ -268,7 +268,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .seg-btn[aria-selected="true"] > span:last-child { color: var(--chip-on-ink); }
 
 /* Circle */
-.circle { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(250px, 0.82fr) minmax(0, 1.18fr); }
+.circle { position: relative; flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(250px, 0.82fr) minmax(0, 1.18fr); }
 .agents { display: flex; flex-direction: column; gap: 10px; padding: 16px 16px 16px 22px; border-right: 1px solid var(--hair); min-height: 0; }
 .agents-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .agent-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
@@ -281,7 +281,9 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .agent-meta { font-size: 12px; color: var(--ink-2); }
 .agent-status { font-size: 11.5px; line-height: 1.35; color: var(--ink-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .xp { height: 5px; border-radius: 3px; background: var(--chip); overflow: hidden; }
-.xp span { display: block; height: 100%; border-radius: 3px; transform-origin: left; }
+.xp-fill { position: relative; display: block; height: 100%; border-radius: 3px; transform-origin: left; overflow: hidden; }
+.xp-sheen { position: absolute; top: 0; bottom: 0; left: 0; width: 45%; background: linear-gradient(90deg, transparent, rgba(255, 244, 232, 0.7), transparent); transform: translateX(-110%); animation: xp-sheen 3.4s cubic-bezier(.45, 0, .25, 1) infinite; }
+@keyframes xp-sheen { 0%, 35% { transform: translateX(-110%); } 100% { transform: translateX(260%); } }
 .agent-panel { position: relative; display: flex; flex-direction: column; gap: 12px; padding: 16px 22px 16px 20px; min-width: 0; min-height: 0; }
 .panel-view { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .agent-detail { display: flex; flex-direction: column; gap: 9px; min-height: 0; }
@@ -318,7 +320,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .duel-track { position: relative; flex: 1; height: 6px; border-radius: 3px; background: linear-gradient(90deg, #A9502D, var(--chip) 45%, var(--chip) 55%, #5E6B8C); }
 .duel-mid { position: absolute; left: 50%; top: -4px; bottom: -4px; width: 1px; background: var(--ink-3); }
 .duel-rail { position: absolute; inset: 0; }
-.duel-mark { position: absolute; left: 50%; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: var(--ink); box-shadow: 0 0 0 3px var(--chip), 0 2px 8px rgba(0,0,0,.3); }
+.duel-mark { position: absolute; left: 50%; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: var(--ink); box-shadow: 0 0 0 3px var(--chip), 0 0 12px color-mix(in srgb, var(--accent) 45%, transparent); }
 .duel-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--ink-2); margin-top: -4px; }
 .debate-lines { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: flex-end; gap: 8px; overflow: hidden; -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 40px); mask-image: linear-gradient(to bottom, transparent 0, #000 40px); }
 .line { display: flex; gap: 9px; align-items: flex-start; max-width: 92%; }
@@ -482,3 +484,167 @@ button { font: inherit; color: inherit; cursor: pointer; }
   .live-dot, .caret, .clip-bot, .mover, .mover.bars rect { animation: none !important; }
   .panel, .glyph { transition: none; }
 }
+
+/* ---------- Quantum states: superposition until observed ----------
+   Controls you aren't looking at hold a soft wave-like aura, two rings drifting
+   out of phase. Where your gaze lands (pointer, center of view in motion mode,
+   or your finger) the aura collapses and the control settles into a crisp,
+   raised button. Only opacity and transform animate, and the individual
+   translate/scale properties compose with Motion's transforms instead of
+   fighting them. Light is additive: glows, never black shadows. */
+:where(.dock-item, .model-chip, .action, .seg-btn, .chip-btn, .agent-card, .tile, .card-hit,
+  .pin, .model-row, .model-use, .model-close, .pill-btn, .switch, .ghost-btn) {
+  position: relative;
+  transition: translate .32s cubic-bezier(.2, .9, .25, 1.25), scale .32s cubic-bezier(.2, .9, .25, 1.25), border-color .25s;
+}
+:where(.dock-item, .model-chip, .action, .seg-btn, .chip-btn, .agent-card, .tile, .card-hit,
+  .pin, .model-row, .model-use, .model-close, .pill-btn, .switch, .ghost-btn)::before,
+:where(.dock-item, .model-chip, .action, .seg-btn, .chip-btn, .agent-card, .tile, .card-hit,
+  .pin, .model-row, .model-use, .model-close, .pill-btn, .switch, .ghost-btn)::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 2;
+  border: 1px solid var(--q-wave, color-mix(in srgb, var(--accent) 60%, var(--ink)));
+  opacity: 0;
+  animation: q-wave 3.6s cubic-bezier(.4, 0, .6, 1) infinite;
+  animation-delay: var(--q-phase, 0s);
+}
+:where(.dock-item, .model-chip, .action, .seg-btn, .chip-btn, .agent-card, .tile, .card-hit,
+  .pin, .model-row, .model-use, .model-close, .pill-btn, .switch, .ghost-btn)::after {
+  animation-delay: calc(var(--q-phase, 0s) - 1.8s);
+}
+/* Clipped controls keep their waves inside the edge. */
+.tile::before, .tile::after, .model-chip::before, .model-chip::after { inset: 1px; }
+/* In the Dock the waves hug the icon tile, whatever the label setting or screen. */
+.dock-item::before, .dock-item::after { content: none; }
+.dock-icon::before, .dock-icon::after {
+  content: ''; position: absolute; inset: -3px; border-radius: 18px; pointer-events: none; z-index: 2;
+  border: 1px solid color-mix(in srgb, var(--accent) 60%, var(--ink)); opacity: 0;
+  animation: q-wave 3.6s cubic-bezier(.4, 0, .6, 1) infinite; animation-delay: var(--q-phase, 0s);
+}
+.dock-icon::after { animation-delay: calc(var(--q-phase, 0s) - 1.8s); }
+.dock-item.observed .dock-icon::before {
+  animation: q-collapse .42s cubic-bezier(.2, .8, .2, 1) both;
+  border-color: color-mix(in srgb, var(--accent) 75%, var(--ivory));
+  box-shadow: 0 0 14px -2px color-mix(in srgb, var(--accent) 55%, transparent), inset 0 1px 0 color-mix(in srgb, var(--ivory) 45%, transparent);
+}
+.dock-item.observed .dock-icon::after { animation: none; opacity: 0; }
+.card-hit::before, .card-hit::after { inset: 3px; }
+/* Neighbors drift out of phase, so the field shimmers instead of pulsing in step. */
+:where(.dock-item, .action, .chip-btn, .agent-card, .tile, .pin, .model-row):nth-child(2n) { --q-phase: -0.9s; }
+:where(.dock-item, .action, .chip-btn, .agent-card, .tile, .pin, .model-row):nth-child(3n) { --q-phase: -2.3s; }
+:where(.dock-item, .action, .chip-btn, .agent-card, .tile, .pin, .model-row):nth-child(5n) { --q-phase: -1.4s; }
+@keyframes q-wave {
+  0% { opacity: 0; transform: scale(0.97); }
+  35% { opacity: 0.36; }
+  100% { opacity: 0; transform: scale(1.07); }
+}
+
+/* Collapse: the waves resolve into one bright, still edge and the control rises. */
+.observed { translate: 0 -1.5px; scale: 1.025; }
+.observed::before {
+  animation: q-collapse .42s cubic-bezier(.2, .8, .2, 1) both;
+  border-color: color-mix(in srgb, var(--accent) 75%, var(--ivory));
+  box-shadow: 0 0 14px -2px color-mix(in srgb, var(--accent) 55%, transparent), inset 0 1px 0 color-mix(in srgb, var(--ivory) 45%, transparent);
+}
+.observed::after { animation: none; opacity: 0; }
+@keyframes q-collapse {
+  0% { opacity: 0.2; transform: scale(1.08); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.dock-item.observed { translate: 0 -2px; scale: 1; }
+.tile.observed, .agent-card.observed, .model-row.observed { scale: 1.012; }
+.observed:active { translate: 0 0; scale: 0.985; transition-duration: .08s; }
+:disabled.observed { translate: none; scale: none; }
+:disabled.observed::before { border-color: var(--hair); box-shadow: none; }
+
+/* The gaze reticle: only shown when your head drives the view. */
+.reticle {
+  position: fixed; left: 50%; top: 50%; z-index: 15; width: 22px; height: 22px; margin: -11px 0 0 -11px;
+  border-radius: 50%; pointer-events: none; opacity: 0;
+  border: 1.5px solid color-mix(in srgb, var(--ivory) 70%, transparent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--ivory) 25%, transparent);
+  transition: opacity .3s, transform .3s cubic-bezier(.2, .9, .25, 1.3), border-color .25s;
+}
+.reticle::after { content: ''; position: absolute; left: 50%; top: 50%; width: 3px; height: 3px; margin: -1.5px 0 0 -1.5px; border-radius: 50%; background: var(--ivory); }
+.reticle.on { opacity: 0.8; }
+.reticle.on.locked { opacity: 1; transform: scale(0.55); border-color: var(--clay); box-shadow: 0 0 12px color-mix(in srgb, var(--clay) 70%, transparent); }
+
+@media (prefers-reduced-motion: reduce) {
+  :where(.dock-item, .model-chip, .action, .seg-btn, .chip-btn, .agent-card, .tile, .card-hit,
+    .pin, .model-row, .model-use, .model-close, .pill-btn, .switch, .ghost-btn)::before,
+  :where(.dock-item, .model-chip, .action, .seg-btn, .chip-btn, .agent-card, .tile, .card-hit,
+    .pin, .model-row, .model-use, .model-close, .pill-btn, .switch, .ghost-btn)::after { animation: none; }
+  .dock-icon::before, .dock-icon::after { animation: none; }
+  .observed::before, .dock-item.observed .dock-icon::before { animation: none; opacity: 1; }
+  .observed, .observed:active { translate: none; scale: none; }
+  .reticle { transition: opacity .2s; }
+  .reticle.on.locked { transform: none; }
+}
+:root[data-motion="reduced"] :where(.dock-item, .model-chip, .action, .seg-btn, .chip-btn, .agent-card, .tile, .card-hit,
+  .pin, .model-row, .model-use, .model-close, .pill-btn, .switch, .ghost-btn)::before,
+:root[data-motion="reduced"] :where(.dock-item, .model-chip, .action, .seg-btn, .chip-btn, .agent-card, .tile, .card-hit,
+  .pin, .model-row, .model-use, .model-close, .pill-btn, .switch, .ghost-btn)::after { animation: none; }
+:root[data-motion="reduced"] .dock-icon::before, :root[data-motion="reduced"] .dock-icon::after { animation: none; }
+:root[data-motion="reduced"] .observed::before, :root[data-motion="reduced"] .dock-item.observed .dock-icon::before { animation: none; opacity: 1; }
+:root[data-motion="reduced"] .observed { translate: none; scale: none; }
+
+/* Distance mapping: as you step back, strokes thicken a touch so text keeps its weight. */
+.panel { -webkit-text-stroke: var(--q-stroke, 0px) currentColor; }
+
+/* ---------- Circle: flows ----------
+   Comets (a bright head and a soft tail) ride the tree's links; rings flash
+   where they land. Warm ivory light tinted by each agent's color. */
+.tree, .engram, .duel { --spark-lift: #FFF4E8; --spark-mix: 52%; }
+:root[data-theme="paper"] :is(.tree, .engram, .duel), :root[data-theme="kiln"] :is(.tree, .engram, .duel) { --spark-lift: #FFE3D2; --spark-mix: 88%; }
+.tree, .engram { --spark-core: color-mix(in srgb, var(--agent) var(--spark-mix), var(--spark-lift)); --spark-glow: color-mix(in srgb, var(--agent) 70%, var(--spark-lift)); }
+.tree-flow { position: absolute; left: 0; top: 0; transform-origin: 0 0; pointer-events: none; }
+.spark {
+  position: absolute; left: 0; top: 0; width: 18px; height: 3px; margin: -1.5px 0 0 -15px; border-radius: 2px;
+  transform-origin: 15px 1.5px; opacity: 0; pointer-events: none;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--spark-core) 55%, transparent) 55%, var(--spark-core) 82%, var(--spark-lift));
+  filter: drop-shadow(0 0 3px var(--spark-glow));
+}
+.spark.learning { width: 13px; margin-left: -11px; transform-origin: 11px 1.5px; filter: none; }
+.spark.blocked { background: linear-gradient(90deg, transparent, #E3B25A 80%, #FFE6B0); filter: drop-shadow(0 0 3px #E3B25A); }
+.spark.bright { width: 22px; height: 3.5px; margin: -1.75px 0 0 -19px; transform-origin: 19px 1.75px; }
+.halo { position: absolute; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%; border: 1.5px solid var(--spark-glow); opacity: 0; pointer-events: none; }
+.halo.learning { border-width: 1px; }
+.halo.breathe { width: 15px; height: 15px; margin: -7.5px 0 0 -7.5px; border: 1px solid var(--spark-glow); animation: halo-breathe 2.8s ease-in-out infinite; }
+.halo.breathe.big { width: 24px; height: 24px; margin: -12px 0 0 -12px; }
+.halo.flagged { width: 14px; height: 14px; margin: -7px 0 0 -7px; border: none; background: radial-gradient(circle, rgba(227, 178, 90, 0.75), rgba(227, 178, 90, 0) 70%); animation: flag-pulse 1.7s ease-in-out infinite; }
+@keyframes halo-breathe { 0% { transform: scale(0.85); opacity: 0.6; } 70% { opacity: 0; } 100% { transform: scale(1.7); opacity: 0; } }
+@keyframes flag-pulse { 0%, 100% { transform: scale(0.8); opacity: 0.35; } 50% { transform: scale(1.5); opacity: 0.95; } }
+.orbit { position: absolute; width: 44px; height: 44px; margin: -22px 0 0 -22px; border-radius: 50%; border: 1px dashed var(--spark-glow); opacity: 0.55; animation: orbit-spin 16s linear infinite; pointer-events: none; }
+.core { position: absolute; width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--spark-glow) 55%, transparent), transparent 70%); animation: core-breathe 3.2s ease-in-out infinite; pointer-events: none; }
+@keyframes orbit-spin { to { transform: rotate(360deg); } }
+@keyframes core-breathe { 0%, 100% { transform: scale(0.9); opacity: 0.5; } 50% { transform: scale(1.25); opacity: 1; } }
+
+.engram { position: absolute; inset: 0; pointer-events: none; z-index: 1; }
+.engram-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.engram-path { fill: none; stroke: var(--spark-glow); stroke-width: 1.2; stroke-dasharray: 1.5 4.5; stroke-linecap: round; opacity: 0.8; }
+.engram-port { position: absolute; width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px; border-radius: 50%; background: var(--spark-core); box-shadow: 0 0 10px 2px color-mix(in srgb, var(--spark-glow) 70%, transparent); animation: core-breathe 2.1s ease-in-out infinite; }
+
+.duel-track { isolation: isolate; }
+.duel-flow { position: absolute; inset: 0; pointer-events: none; opacity: 0; }
+.duel-flow > span { position: absolute; left: 50%; top: 50%; width: 16px; height: 4px; margin: -2px 0 0 -8px; border-radius: 2px; }
+.duel-flow.brian > span { background: linear-gradient(90deg, transparent, #F2B596); box-shadow: 0 0 8px #D97757; }
+.duel-flow.ada > span { background: linear-gradient(270deg, transparent, #C9D2F0); box-shadow: 0 0 8px #8494C2; }
+.duel-flow.pulse > span { width: 26px; height: 6px; margin: -3px 0 0 -13px; border-radius: 3px; }
+.duel-flow.pulse.brian > span { background: linear-gradient(90deg, transparent, #FFD9C4); box-shadow: 0 0 14px 2px #D97757; }
+.duel-flow.pulse.ada > span { background: linear-gradient(270deg, transparent, #E6ECFF); box-shadow: 0 0 14px 2px #8494C2; }
+.duel-rail { z-index: 1; }
+.mark-ripple { position: absolute; inset: -3px; border-radius: 50%; border: 1.5px solid var(--accent); opacity: 0; animation: mark-ripple .9s cubic-bezier(.2, .7, .3, 1) .7s; }
+@keyframes mark-ripple { 0% { transform: scale(0.8); opacity: 0.9; } 100% { transform: scale(2.8); opacity: 0; } }
+.avatar.speaking { position: relative; }
+.avatar.speaking::after { content: ''; position: absolute; inset: -3px; border-radius: 12px; border: 1.5px solid color-mix(in srgb, var(--agent) 60%, #FFF4E8); animation: speak-ring 1.5s ease-out infinite; }
+@keyframes speak-ring { 0% { transform: scale(0.95); opacity: 0.9; } 100% { transform: scale(1.35); opacity: 0; } }
+@media (max-width: 640px) { .engram { display: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .xp-sheen, .halo, .orbit, .core, .engram-port, .avatar.speaking::after, .mark-ripple { animation: none !important; }
+}
+:root[data-motion="reduced"] :is(.xp-sheen, .halo, .orbit, .core, .engram-port, .mark-ripple),
+:root[data-motion="reduced"] .avatar.speaking::after { animation: none !important; }

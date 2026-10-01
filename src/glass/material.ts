@@ -126,13 +126,35 @@ const FRAG_FINAL = /* glsl */ `
   float facing = clamp(dot(Nw, V), 0.0, 1.0);
   float edge = 1.0 - smoothstep(0.5, 0.97, vSlabNormal.z);
   vec3 col = gl_FragColor.rgb;
-  // Body tint, lighter on the polished edge.
+  vec2 suv = gl_FragCoord.xy / uResolution;
+
+  // How bright is the real world right behind this point? (A small cross of
+  // samples from the refraction buffer.)
+  vec2 px = 6.0 / uResolution;
+  vec3 back = texture2D(buffer, suv).rgb * 0.4
+    + (texture2D(buffer, suv + vec2(px.x, 0.0)).rgb + texture2D(buffer, suv - vec2(px.x, 0.0)).rgb
+     + texture2D(buffer, suv + vec2(0.0, px.y)).rgb + texture2D(buffer, suv - vec2(0.0, px.y)).rgb) * 0.15;
+  float backLum = dot(back, vec3(0.2126, 0.7152, 0.0722));
+  float bright = smoothstep(0.03, 0.4, backLum);
+
+  // Body tint (the electrochromic dimming layer), lighter on the polished edge.
   col = mix(col, uMilk, uMilkAmt * (1.0 - edge * 0.7));
-  // Fresnel rim plus a key light that slides along the bevel with the head.
+
+  // Adaptive rim: on a bright backdrop the border emits more and tightens so it
+  // still separates from the world; on a dark one it stays soft and low.
   vec3 L = normalize(vec3(-0.55 + uHead.x * 0.9, 0.62 + uHead.y * 0.6, 0.55));
-  float rim = pow(1.0 - facing, 2.2) * edge;
-  float key = pow(max(dot(Nw, L), 0.0), 7.0) * edge;
-  col += uRim * (rim * 0.4 + key * 1.25) * uRimAmt;
+  float rimPow = mix(2.4, 4.2, bright);
+  float rim = pow(1.0 - facing, rimPow) * edge;
+  float key = pow(max(dot(Nw, L), 0.0), mix(7.0, 11.0, bright)) * edge;
+  col += uRim * (rim * mix(0.38, 0.95, bright) + key * mix(1.15, 1.9, bright)) * uRimAmt;
+
+  // Iridescent dispersion: at grazing angles the bevel splits light into a thin
+  // rainbow, shifting with head position like a film on glass.
+  float graze = pow(1.0 - facing, 3.0) * edge;
+  float hue = fract((1.0 - facing) * 2.4 + vSlabPos.x * 0.7 - vSlabPos.y * 0.4 + uHead.x * 0.25 - uHead.y * 0.15);
+  vec3 spectrum = 0.5 + 0.5 * cos(6.28318 * (hue + vec3(0.0, 0.33, 0.67)));
+  col += spectrum * graze * 0.55 * (0.6 + 0.4 * uRimAmt);
+
   // Where your finger is: the nearby edge catches the light and the face glows softly.
   vec2 dp = vSlabPos.xy - uPointer;
   float d2 = dot(dp, dp);
@@ -145,10 +167,12 @@ const FRAG_FINAL = /* glsl */ `
   // Ripple crests catch the light; troughs dip a little.
   col += uRim * gRippleGlow * 0.28 * (1.0 - edge);
   col *= 1.0 - 0.12 * min(gRippleTrough, 1.0);
-  // Kiln's dark outline.
-  col = mix(col, vec3(0.012, 0.006, 0.004), edge * uEdgeDark);
+  // Kiln's outline, drawn as deep clay light rather than ink.
+  col = mix(col, vec3(0.32, 0.085, 0.035), edge * uEdgeDark);
+  // AR rule: a display can only add light, so nothing goes to pure black.
+  col = max(col, vec3(0.012, 0.011, 0.010));
   // Entrance: fade in from exactly what is behind.
-  vec3 behind = texture2D(buffer, gl_FragCoord.xy / uResolution).rgb;
+  vec3 behind = texture2D(buffer, suv).rgb;
   gl_FragColor.rgb = mix(behind, col, uPresence);
 }
 `

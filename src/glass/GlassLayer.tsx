@@ -6,9 +6,10 @@ import * as THREE from 'three'
 import { DEPTH, panels, usePanelIds, type PanelEntry } from './registry'
 import { slabGeometry } from './geometry'
 import { GLASS_LOOKS, patchGlass, sharedGlass, slabUniforms, type SlabUniforms } from './material'
-import { head } from '../head/headPose'
+import { head, walk } from '../head/headPose'
 import { focus, stepFocus } from '../scene/focus'
 import { mergeAmount } from '../scene/transitions'
+import { commitWells, gravity, massOf, pullOn } from '../scene/gravity'
 import { useApp } from '../state/store'
 
 const coarse = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches
@@ -54,6 +55,9 @@ function GlassSlab({ id, buffer }: { id: string; buffer: THREE.Texture }) {
         clearcoat={0.25}
         clearcoatRoughness={0.08}
         envMapIntensity={0.2}
+        iridescence={0.9}
+        iridescenceIOR={1.32}
+        iridescenceThicknessRange={[180, 560]}
         color={new THREE.Color(...look.color)}
         attenuationColor={new THREE.Color(...look.attenuation)}
         attenuationDistance={1.4}
@@ -65,6 +69,7 @@ function GlassSlab({ id, buffer }: { id: string; buffer: THREE.Texture }) {
 
 const tmp = new THREE.Vector3()
 const tmpC = new THREE.Color()
+const raster = { z: 0 }
 
 /** Objects in front of the glass (the voice orb): left out of what the glass refracts. */
 export const foreground = new Set<THREE.Object3D>()
@@ -114,6 +119,15 @@ export function GlassLayer() {
       placeSlab(e, s, cam, W, H, dpx, tanHalf, now, dt, reducedMotion)
       s.mat.color.lerp(tmpC.setRGB(...look.color), k)
       ;(s.mat.uniforms.attenuationColor.value as THREE.Color).lerp(tmpC.setRGB(...look.attenuation), k)
+    }
+    commitWells()
+
+    // Panels keep one raster while you walk so the ride stays smooth; once you
+    // stop, redraw them sharp at their new size.
+    if (walk.settledFor > 0.25 && Math.abs(walk.z - raster.z) > 0.03) {
+      raster.z = walk.z
+      panels.forEach(p => { p.el.style.willChange = 'auto' })
+      requestAnimationFrame(() => panels.forEach(p => { p.el.style.willChange = '' }))
     }
 
     // Shared refraction buffer: the world without the glass, blurred when a panel has focus.
@@ -174,6 +188,10 @@ function placeSlab(e: PanelEntry, s: Slab, cam: THREE.PerspectiveCamera, W: numb
   const r = e.radius * perPx
   e.world = { w, h, cx, cy }
 
+  // Moving windows bend space: neighbors lean toward them and stretch along the pull.
+  const pull = reduced ? { dx: 0, dy: 0, sx: 1, sy: 1 } : pullOn(e.id, e.rest.x + e.rest.w / 2, e.rest.y + e.rest.h / 2)
+  const pcx = cx + pull.dx * perPx, pcy = cy - pull.dy * perPx
+
   // The glass eases to a new size (Dock pins, sheets); the text lays out at once.
   const z = e.size
   if (z.w === 0 || reduced) { z.w = w; z.h = h; z.vw = 0; z.vh = 0 }
@@ -195,13 +213,16 @@ function placeSlab(e: PanelEntry, s: Slab, cam: THREE.PerspectiveCamera, W: numb
   // Between rebuilds, stretch the current slab to the new size.
   const sx = s.geo.w > 0 ? gw / s.geo.w : 1, sy = s.geo.h > 0 ? gh / s.geo.h : 1
 
-  // Presence: the slab rises a little toward you as it appears.
+  // Presence: the slab rises a little toward you as it appears. Flight: it
+  // travels in from deeper space and overshoots toward you before settling.
   const p = e.presence.get()
   const lift = reduced ? 0 : (1 - p) * 0.18
   const grow = reduced ? 1 : 0.94 + 0.06 * p
+  const flight = reduced ? 0 : (1 - e.fly.get()) * 2.0
+  const pz = -d - lift - flight
   s.mesh.visible = p > 0.001
-  s.mesh.position.set(cx, cy, -d - lift)
-  s.mesh.scale.set(sx * grow, sy * grow, 1)
+  s.mesh.position.set(pcx, pcy, pz)
+  s.mesh.scale.set(sx * grow * pull.sx, sy * grow * pull.sy, 1)
   s.u.uPresence.value = p
   s.u.uSlabSize.value.set(gw, gh)
 
@@ -223,18 +244,36 @@ function placeSlab(e: PanelEntry, s: Slab, cam: THREE.PerspectiveCamera, W: numb
   })
 
   // Glue the DOM to the slab: project its center and edge, then translate and scale.
-  const pc = tmp.set(cx, cy, -d - lift).project(cam)
+  const pc = tmp.set(pcx, pcy, pz).project(cam)
   const px = (pc.x + 1) * 0.5 * W, py = (1 - pc.y) * 0.5 * H
-  const pe = tmp.set(cx + (w / 2) * grow, cy, -d - lift).project(cam)
+  const pe = tmp.set(pcx + (w / 2) * grow, pcy, pz).project(cam)
   const ex = (pe.x + 1) * 0.5 * W
   let scale = ((ex - px) * 2) / e.rest.w
   if (Math.abs(scale - 1) < 0.0015) scale = 1
+  e.apparentScale = scale
+
+  // A window moving through depth carries mass: record it as a gravity well.
+  const mass = reduced ? 0 : massOf(e)
+  if (mass > 0.01) gravity.next.push({ id: e.id, cx: px, cy: py, hw: (e.rest.w / 2) * scale, hh: (e.rest.h / 2) * scale, r: e.radius * scale, mass })
+
   const q = 1 / dpx
   const dx = Math.round((px - (e.rest.x + e.rest.w / 2)) / q) * q
   const dy = Math.round((py - (e.rest.y + e.rest.h / 2)) / q) * q
-  const t = `translate3d(${dx}px, ${dy}px, 0) scale(${scale.toFixed(4)})`
+  const ssx = (scale * pull.sx).toFixed(4), ssy = (scale * pull.sy).toFixed(4)
+  const t = `translate3d(${dx}px, ${dy}px, 0) scale(${ssx}, ${ssy})`
   if (t !== e.lastTransform) {
     e.el.style.transform = t
     e.lastTransform = t
+  }
+
+  // Distance mapping: stepping back makes type smaller and thinner on the
+  // display, so strokes thicken a touch to hold its weight. Keyed to where you
+  // are walking to, not to flights, so text isn't redrawn mid-animation.
+  const far = e.depth / Math.max(0.5, e.depth + walk.target)
+  const stroke = far < 1 ? Math.min(0.55, (1 / far - 1) * 0.9) : 0
+  const sq = Math.round(stroke * 20) / 20
+  if (sq !== e.stroke) {
+    e.el.style.setProperty('--q-stroke', `${sq}px`)
+    e.stroke = sq
   }
 }

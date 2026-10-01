@@ -1,5 +1,5 @@
 import { useRef } from 'react'
-import { AnimatePresence, motion, useSpring, type MotionValue } from 'motion/react'
+import { AnimatePresence, animate, motion, useSpring, type MotionValue } from 'motion/react'
 import { GlassPanel } from '../glass/GlassPanel'
 import { addRipple, panels } from '../glass/registry'
 import { SECTION_ORDER, useApp, type SectionId } from '../state/store'
@@ -21,9 +21,13 @@ export function goToSection(id: SectionId) {
   setModal(null)
   if (id === section) return
   setSection(id)
-  // A ripple rolls up through the main window from the Dock.
+  // A ripple rolls up through the main window from the Dock, and the window
+  // dips back and springs forward: its momentum briefly bends space around it.
   const main = panels.get('main')
-  if (main) addRipple(main, 0, -main.world.h / 2 + 0.04, 0.75)
+  if (main) {
+    addRipple(main, 0, -main.world.h / 2 + 0.04, 0.75)
+    if (!useApp.getState().reducedMotion) { main.fly.set(0.9); animate(main.fly, 1, { type: 'spring', stiffness: 300, damping: 13 }) }
+  }
 }
 
 export function Dock() {

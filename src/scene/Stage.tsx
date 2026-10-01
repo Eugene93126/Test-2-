@@ -9,7 +9,8 @@ import { GlassLayer } from '../glass/GlassLayer'
 import { VoiceOrb } from '../voice/VoiceOrb'
 import { PerfProbe } from '../perf/perf'
 import { Base64HDRLoader } from './hdri'
-import { head, stepHead } from '../head/headPose'
+import { head, stepHead, walk } from '../head/headPose'
+import { stepGaze } from '../gaze/quantum'
 import { useApp } from '../state/store'
 
 const BASE = import.meta.env.BASE_URL
@@ -36,8 +37,9 @@ function HeadRig() {
     const { headMotion, reducedMotion } = useApp.getState()
     stepHead(dt, headMotion, reducedMotion, state.clock.elapsedTime)
     const a = head.amount
-    camera.position.set(head.x * HEAD_TRAVEL_X * a, head.y * HEAD_TRAVEL_Y * a, 0)
+    camera.position.set(head.x * HEAD_TRAVEL_X * a, head.y * HEAD_TRAVEL_Y * a, walk.z)
     camera.lookAt(0, 0, -FIXATION)
+    stepGaze()
   }, -500)
   return null
 }
