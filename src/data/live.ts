@@ -1,4 +1,5 @@
 import { useWorldTime, gridPrice, PEAK_END } from './worldClock'
+import { useVoice } from '../voice/voice'
 
 // Small live values for the HUD and glances, all derived from in-world time
 // so they agree with each other.
@@ -6,6 +7,7 @@ const START_MIN = 20 * 60 + 41
 
 export function useLive() {
   const t = useWorldTime()
+  const spent = useVoice(s => s.spentKJ)
   const elapsed = t.minutes - START_MIN // minutes since 8:41 PM
   const peak = t.minutes < PEAK_END
   // Red Line at Belmont: next train 4 min out at 8:41, then every 8 minutes.
@@ -17,7 +19,9 @@ export function useLive() {
     peak,
     price: gridPrice(t.minutes),
     // Odyssey runs on-device in the background: a slow, steady draw.
-    energyKJ: 41.6 + Math.max(0, elapsed) * 0.12,
+    energyKJ: 41.6 + Math.max(0, elapsed) * 0.12 + spent,
+    // Per model: replies in this session split as rendered (Fable) and queued (Pantheon).
+    byModel: { fable: 26.6 + spent * (3.1 / 3.7), pantheon: 9.2 + spent * (0.6 / 3.7), odyssey: 5.8 + Math.max(0, elapsed) * 0.12 },
     battery: Math.max(5, 61 - Math.floor(Math.max(0, elapsed) / 5)),
     train,
     leaveIn,

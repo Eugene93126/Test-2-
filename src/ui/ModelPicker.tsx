@@ -5,6 +5,7 @@ import { useApp, type ModelId } from '../state/store'
 import { MODELS, modelById } from '../data/models'
 import { LockIcon } from './icons'
 import { SPRING } from './motion'
+import { switchModel } from '../scene/transitions'
 
 // Model picker: a glass sheet over the main window. Peek at any model; use the
 // ones your plan allows. Mythos Duo needs a verified organization.
@@ -16,8 +17,13 @@ export function ModelPicker() {
 
 function Sheet() {
   const current = useApp(s => s.model)
-  const setModel = useApp(s => s.setModel)
   const setModal = useApp(s => s.setModal)
+  const use = (id: ModelId, e: React.MouseEvent) => {
+    // Keyboard activation has no pointer position: start from the button's center.
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    const keyboard = e.clientX === 0 && e.clientY === 0
+    switchModel(id, keyboard ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : { x: e.clientX, y: e.clientY })
+  }
   const [peek, setPeek] = useState<ModelId>(current)
   const first = useRef<HTMLButtonElement>(null)
   const m = modelById(peek)
@@ -46,7 +52,7 @@ function Sheet() {
               aria-selected={on}
               className="model-row"
               onClick={() => setPeek(d.id)}
-              onDoubleClick={() => { if (!d.locked) { setModel(d.id); setModal(null) } }}
+              onDoubleClick={e => { if (!d.locked) use(d.id, e) }}
             >
               {on && <motion.span layoutId="model-peek" className="model-row-fill" transition={SPRING} />}
               <span className="dot" style={{ background: d.dot }} />
@@ -82,7 +88,7 @@ function Sheet() {
           <button
             className={`model-use${m.locked ? ' locked' : ''}`}
             disabled={m.locked || inUse}
-            onClick={() => { setModel(m.id); setModal(null) }}
+            onClick={e => use(m.id, e)}
           >
             {m.locked ? 'Requires verification' : inUse ? 'In use' : `Use ${m.name}`}
           </button>

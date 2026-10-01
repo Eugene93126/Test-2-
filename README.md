@@ -6,8 +6,8 @@ Built in phases, with a review after each:
 
 1. **World and lens**: city loop with depth parallax, apartment window, head motion (mouse or gyroscope), lens effects, five theme lens tints, perf meter.
 2. **Glass**: glass slabs at 3 depths with real refraction, a head-tracked rim light, inner sheen, a lens under the pointer and ripples on press; focus by gaze; two type pairings and three logo options to choose from in the Review menu.
-3. **Shell** (current): live HUD (in-world clock from 8:41 PM, grid price that drops when peak ends at 9, energy meter, battery), glance cards that count down or open their section, the Claude Dock (magnetic icons, sliding highlight, pin and unpin, labels), the model picker (five models, Mythos locked) and section transitions. Sheets are overlay glass that refracts the panels behind them.
-4. Chat, Circle, World.
+3. **Shell**: live HUD (in-world clock from 8:41 PM, grid price that drops when peak ends at 9, energy meter, battery), glance cards that count down or open their section, the Claude Dock (magnetic icons, sliding highlight, pin and unpin, labels), the model picker (five models, Mythos locked) and section transitions. Sheets are overlay glass that refracts the panels behind them.
+4. **Sections and model transitions** (current): Chat in voice mode (a 3D orb and waveform; your words appear as you speak, Claude answers with a signed clip), Claude Circle (six agents, branching skill trees, a three-round debate arena with a judge meter), Claude World (illustrated gallery, unsigned uploads hidden unless shown, provenance chains). Switching models has its own transition: Fable Duo warps space, Pantheon 2.0 shatters reality over molten light, Odyssey 3.2 merges the depth layers into one plane, Pantheon 1.0 dips like a power cycle.
 5. Code, Home, Memory, Trust.
 6. Phone layout, performance and accessibility pass.
 

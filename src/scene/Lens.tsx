@@ -4,6 +4,8 @@ import { EffectComposer, DepthOfField, Bloom } from '@react-three/postprocessing
 import type { BloomEffect, DepthOfFieldEffect } from 'postprocessing'
 import { HalfFloatType } from 'three'
 import { LensEffect } from './effects/LensEffect'
+import { TransitionEffect, KIND_INDEX } from './effects/TransitionEffect'
+import { stepTransition, transition } from './transitions'
 import { useApp } from '../state/store'
 import { THEMES } from '../theme/themes'
 import { focus } from './focus'
@@ -21,6 +23,7 @@ export function Lens() {
   const dof = useRef<DepthOfFieldEffect>(null)
   const bloom = useRef<BloomEffect>(null)
   const lens = useMemo(() => new LensEffect(), [])
+  const trans = useMemo(() => new TransitionEffect(), [])
 
   useFrame((state, dt) => {
     const { theme, reducedMotion } = useApp.getState()
@@ -34,12 +37,22 @@ export function Lens() {
     u.get('uGrain')!.value += (g.grain - u.get('uGrain')!.value) * k
     lens.set('uSeed', reducedMotion ? 0.5 : (state.clock.elapsedTime * 24) % 1000)
     lens.setAspect(size.width, size.height)
+
+    stepTransition()
+    const tu = trans.uniforms
+    tu.get('uKind')!.value = transition.kind ? KIND_INDEX[transition.kind] : 0
+    tu.get('uT')!.value = transition.t
+    ;(tu.get('uOrigin')!.value as { set: (x: number, y: number) => void }).set(...transition.origin)
+    ;(tu.get('uTint')!.value as { set: (x: number, y: number, z: number) => void }).set(...transition.tint)
+    const a = size.width / size.height
+    ;(tu.get('uAspect')!.value as { set: (x: number, y: number) => void }).set(a, 1)
   })
 
   return (
     <EffectComposer multisampling={0} frameBufferType={HalfFloatType} enableNormalPass={false}>
       <DepthOfField ref={dof} worldFocusDistance={FOCUS_DISTANCE} worldFocusRange={8} bokehScale={0} resolutionScale={0.5} />
       <Bloom ref={bloom} mipmapBlur intensity={0.4} luminanceThreshold={0.78} luminanceSmoothing={0.22} radius={0.72} />
+      <primitive object={trans} dispose={null} />
       <primitive object={lens} dispose={null} />
     </EffectComposer>
   )

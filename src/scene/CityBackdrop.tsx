@@ -76,7 +76,7 @@ export function CityBackdrop() {
   const mesh = useRef<THREE.Mesh>(null)
   const videoPlaying = useApp(s => s.videoPlaying)
 
-  const { video, uniforms } = useMemo(() => {
+  const { video, uniforms, material } = useMemo(() => {
     const video = makeVideo(`${BASE}media/city-loop.mp4`)
     const loader = new THREE.TextureLoader()
     const poster = loader.load(`${BASE}media/city-poster.jpg`)
@@ -100,7 +100,8 @@ export function CityBackdrop() {
       uTint: { value: new THREE.Vector3(...g.tint) },
       uLift: { value: new THREE.Vector3(...g.lift) },
     }
-    return { video, uniforms }
+    const material = new THREE.ShaderMaterial({ vertexShader: vertex, fragmentShader: fragment, uniforms, depthWrite: true, toneMapped: false })
+    return { video, uniforms, material }
   }, [])
 
   useEffect(() => {
@@ -143,9 +144,8 @@ export function CityBackdrop() {
   })
 
   return (
-    <mesh ref={mesh} renderOrder={-10}>
+    <mesh ref={mesh} renderOrder={-10} material={material}>
       <planeGeometry args={[1, 1]} />
-      <shaderMaterial vertexShader={vertex} fragmentShader={fragment} uniforms={uniforms} depthWrite toneMapped={false} />
     </mesh>
   )
 }

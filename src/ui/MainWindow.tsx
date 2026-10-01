@@ -6,6 +6,8 @@ import { SECTIONS } from '../data/sections'
 import { modelById } from '../data/models'
 import { Chat } from './sections/Chat'
 import { Resting } from './sections/Resting'
+import { Circle } from './sections/Circle'
+import { World } from './sections/World'
 import { SPRING } from './motion'
 
 // The main window at the mid depth, where your eyes rest. Switching sections
@@ -66,7 +68,7 @@ export function MainWindow() {
       <div className="main-content">
         <AnimatePresence mode="popLayout" initial={false} custom={dir}>
           <motion.div key={section} className="section" custom={dir} variants={content} initial="enter" animate="center" exit="exit" transition={SPRING}>
-            {section === 'chat' ? <Chat /> : <Resting id={section} />}
+            {section === 'chat' ? <Chat /> : section === 'circle' ? <Circle /> : section === 'world' ? <World /> : <Resting id={section} />}
           </motion.div>
         </AnimatePresence>
       </div>

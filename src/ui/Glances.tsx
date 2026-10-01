@@ -38,7 +38,7 @@ export function Glances() {
             <span className="eyebrow">Your AI energy today</span>
             <span className="big-num"><span className="num">{fmtKJ(live.energyKJ)}</span><span className="unit">kJ</span></span>
             <span className="meter" aria-hidden="true"><span style={{ width: '64%' }} /><span className="clay" style={{ width: '22%' }} /><span className="faint" style={{ width: '14%' }} /></span>
-            <span className="card-note">Fable Duo 26.6 · Pantheon 9.2 · Odyssey {(5.8 + (live.energyKJ - 41.6)).toFixed(1)}</span>
+            <span className="card-note">Fable Duo {fmtKJ(live.byModel.fable)} · Pantheon {fmtKJ(live.byModel.pantheon)} · Odyssey {fmtKJ(live.byModel.odyssey)}</span>
             <span className="card-note">{live.peak ? 'Heavy jobs queued for 1:00 AM, when power is cheapest' : 'Off-peak now. Queued jobs start at 1:00 AM.'}</span>
           </button>
         </GlassPanel>

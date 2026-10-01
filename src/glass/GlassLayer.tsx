@@ -3,11 +3,12 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { MeshTransmissionMaterial, useFBO } from '@react-three/drei'
 import { KawaseBlurPass, KernelSize } from 'postprocessing'
 import * as THREE from 'three'
-import { panels, usePanelIds, type PanelEntry } from './registry'
+import { DEPTH, panels, usePanelIds, type PanelEntry } from './registry'
 import { slabGeometry } from './geometry'
 import { GLASS_LOOKS, patchGlass, sharedGlass, slabUniforms, type SlabUniforms } from './material'
 import { head } from '../head/headPose'
 import { focus, stepFocus } from '../scene/focus'
+import { mergeAmount } from '../scene/transitions'
 import { useApp } from '../state/store'
 
 const coarse = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches
@@ -65,6 +66,9 @@ function GlassSlab({ id, buffer }: { id: string; buffer: THREE.Texture }) {
 const tmp = new THREE.Vector3()
 const tmpC = new THREE.Color()
 
+/** Objects in front of the glass (the voice orb): left out of what the glass refracts. */
+export const foreground = new Set<THREE.Object3D>()
+
 export function GlassLayer() {
   const ids = usePanelIds(s => s.ids)
   const group = useRef<THREE.Group>(null)
@@ -116,6 +120,7 @@ export function GlassLayer() {
     const g = group.current
     if (!g || slabs.size === 0) return
     g.visible = false
+    const fgVisible = [...foreground].map(o => { const v = o.visible; o.visible = false; return v })
     gl.setRenderTarget(sharp)
     gl.clear()
     gl.render(state.scene, cam)
@@ -145,6 +150,7 @@ export function GlassLayer() {
       }
     }
     gl.setRenderTarget(null)
+    ;[...foreground].forEach((o, i) => { o.visible = fgVisible[i] })
   }, -100)
 
   return (
@@ -156,8 +162,12 @@ export function GlassLayer() {
 
 function placeSlab(e: PanelEntry, s: Slab, cam: THREE.PerspectiveCamera, W: number, H: number, dpx: number,
   tanHalf: number, now: number, dt: number, reduced: boolean) {
-  const d = e.depth
-  const perPx = (2 * d * tanHalf) / H
+  // During Odyssey's merge every layer flows toward the main window's plane.
+  const m = mergeAmount()
+  const d = e.depth + (DEPTH.mid - e.depth) * m * 0.8
+  // World size comes from the panel's home depth, so moving it in depth changes
+  // how big it looks: far cards swell forward, near chrome settles back.
+  const perPx = (2 * e.depth * tanHalf) / H
   const w = e.rest.w * perPx, h = e.rest.h * perPx
   const cx = (e.rest.x + e.rest.w / 2 - W / 2) * perPx
   const cy = (H / 2 - (e.rest.y + e.rest.h / 2)) * perPx

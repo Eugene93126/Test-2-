@@ -6,6 +6,7 @@ import { CityBackdrop } from './CityBackdrop'
 import { WindowFrame } from './WindowFrame'
 import { Lens } from './Lens'
 import { GlassLayer } from '../glass/GlassLayer'
+import { VoiceOrb } from '../voice/VoiceOrb'
 import { PerfProbe } from '../perf/perf'
 import { Base64HDRLoader } from './hdri'
 import { head, stepHead } from '../head/headPose'
@@ -71,6 +72,7 @@ export function Stage() {
       <CityBackdrop />
       <WindowFrame />
       <GlassLayer />
+      <VoiceOrb />
       <Lens />
       <PerfProbe />
     </Canvas>
