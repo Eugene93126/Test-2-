@@ -1,11 +1,12 @@
 import { Suspense, useEffect, useState } from 'react'
-import { Canvas, useFrame, useThree } from '@react-three/fiber'
+import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber'
 import { Environment, PerformanceMonitor } from '@react-three/drei'
 import * as THREE from 'three'
 import { CityBackdrop } from './CityBackdrop'
 import { WindowFrame } from './WindowFrame'
 import { Lens } from './Lens'
 import { PerfProbe } from '../perf/perf'
+import { Base64HDRLoader } from './hdri'
 import { head, stepHead } from '../head/headPose'
 import { useApp } from '../state/store'
 
@@ -39,6 +40,12 @@ function HeadRig() {
   return null
 }
 
+/** Dusk HDRI (Venice Sunset, Poly Haven, CC0) lights the frame and, later, the glass. */
+function DuskEnvironment() {
+  const map = useLoader(Base64HDRLoader, `${BASE}hdri/venice_sunset_1k.hdr.b64.txt`)
+  return <Environment map={map} environmentIntensity={0.55} />
+}
+
 export function Stage() {
   const [dpr, setDpr] = useState(() => Math.min(window.devicePixelRatio, 1.5))
   return (
@@ -58,7 +65,7 @@ export function Stage() {
       <HeadRig />
       <ambientLight intensity={0.35} color="#ffd8b0" />
       <Suspense fallback={null}>
-        <Environment files={`${BASE}hdri/venice_sunset_1k.hdr`} environmentIntensity={0.55} />
+        <DuskEnvironment />
       </Suspense>
       <CityBackdrop />
       <WindowFrame />

@@ -39,9 +39,11 @@ button { font: inherit; color: inherit; cursor: pointer; }
 /* ---------- Phase 1 review controls ---------- */
 .devbar {
   position: fixed;
-  left: 50%;
+  left: 0;
+  right: 0;
   bottom: max(20px, env(safe-area-inset-bottom));
-  translate: -50% 0;
+  margin-inline: auto;
+  width: fit-content;
   display: flex;
   align-items: center;
   gap: 6px;

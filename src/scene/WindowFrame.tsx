@@ -27,7 +27,6 @@ void main(){
 
 export function WindowFrame() {
   const camera = useThree(s => s.camera) as THREE.PerspectiveCamera
-  const group = useRef<THREE.Group>(null)
   const parts = useRef<Record<string, THREE.Mesh | null>>({})
   const steel = useMemo(() => new THREE.MeshStandardMaterial({ color: '#0d0c0b', metalness: 0.6, roughness: 0.5, envMapIntensity: 0.28 }), [])
   const reflUniforms = useMemo(() => ({ uStrength: { value: 0.07 } }), [])
@@ -46,7 +45,7 @@ export function WindowFrame() {
   })
 
   return (
-    <group ref={group} position={[0, 0, -FRAME_DISTANCE]}>
+    <group position={[0, 0, -FRAME_DISTANCE]}>
       <mesh ref={m => { parts.current.left = m }} material={steel}>
         <boxGeometry args={[0.05, 12, 0.14]} />
       </mesh>

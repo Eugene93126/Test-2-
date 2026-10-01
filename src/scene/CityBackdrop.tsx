@@ -115,10 +115,8 @@ export function CityBackdrop() {
     } else {
       video.pause()
     }
-    return () => video.removeEventListener('playing', ready)
+    return () => { video.removeEventListener('playing', ready); video.pause() }
   }, [video, videoPlaying, uniforms])
-
-  useEffect(() => () => { video.pause(); video.removeAttribute('src'); video.load() }, [video])
 
   const tmp = useMemo(() => new THREE.Vector3(), [])
   useFrame((_, dt) => {

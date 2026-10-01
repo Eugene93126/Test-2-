@@ -18,6 +18,7 @@ const browser = await chromium.launch({
 })
 const page = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: Number(opt('dpr', 1)) })
 page.on('pageerror', e => console.error('[pageerror]', e.message))
+page.on('response', r => { if (r.status() >= 400) console.log('[http]', r.status(), r.url()) })
 page.on('console', m => { if (m.type() === 'error' || m.type() === 'warning') console.log(`[${m.type()}]`, m.text()) })
 for (const s of shots) {
   const i = s.indexOf('=')
