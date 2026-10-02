@@ -166,7 +166,9 @@ def thump(f=hz('D2'), dec=0.16, click=0.25):
 b = 3.0
 while b < 12.0 - 1e-6:
     accent = 1.0 if round((b - 3.0) / BEAT) % 4 == 0 else 0.7
-    place(music, thump(), b, 0, 0.16 * accent * min(1.0, 0.45 + (b - 3.0) / 4))
+    # The first beat lands S2 with weight; the rest grow in.
+    first = b < 3.0 + 1e-6
+    place(music, thump(dec=0.2, click=0.6) if first else thump(), b, 0, 0.3 if first else 0.16 * accent * min(1.0, 0.45 + (b - 3.0) / 4))
     b += BEAT
 
 # 12–16: pulse locked to the card flashes (accelerating), plus a glassy arpeggio.
@@ -284,6 +286,9 @@ place(sfx, c_ * env_ar(len(c_), 0.001, 0.02), EV['penIn'][1], 0.25, 0.08)
 d0, d1 = EV['reportOut']
 sec = d1 - d0
 drag = lp(noise(sec), 2800, 2) * np.sin(np.pi * np.clip(T(sec) / sec, 0, 1)) ** 1.5 + 0.4 * rustle(sec, 80, 800, 6000)
+# A breath in the drag just before the cut to S2, so the first beat lands clean.
+td = T(sec) + d0
+drag *= 1 - 0.75 * np.exp(-((td - 2.99) / 0.025) ** 2)
 place(sfx, drag, d0, -0.5, 0.07)
 
 # Grippers and servos: short whirs as the arms move.
@@ -445,7 +450,10 @@ k = t / sec
 suck = tv_filter(noise(sec), lambda tt, f: 1 / (1 + (f / (150 + 5000 * (tt / sec) ** 3)) ** 2))
 suck = suck / (np.abs(suck).max() + 1e-9) * k ** 3
 sub = np.sin(2 * np.pi * np.cumsum(30 + 50 * k ** 2) / SR) * k ** 2
-place(sfx, suck * 0.9 + sub * 0.5, c0, 0, 0.3)
+# A breath before the clunk: the suck-in pulls back for 25 ms, then the relay hits.
+tc = T(sec) + c0
+gap = 1 - 0.85 * np.clip(1 - np.abs(tc - (EV['flare'][0] - 0.026)) / 0.016, 0, 1)
+place(sfx, (suck * 0.9 + sub * 0.5) * gap, c0, 0, 0.3)
 # The smear of sparks drawing into the glyph, and the chord when it resolves.
 g0, g1 = EV['glyphResolve']
 sec = g1 - g0
@@ -474,7 +482,7 @@ t = T(0.035)
 click = hp(noise(0.035), 1200, 2) * np.exp(-t / 0.003)
 body = np.sin(2 * np.pi * 62 * t) * np.exp(-t / 0.02) + 0.5 * np.sin(2 * np.pi * 130 * t) * np.exp(-t / 0.01)
 clunk = click * 0.8 + body
-place(sfx, clunk, flare - 0.012, 0, 0.9)
+place(sfx, clunk, flare - 0.012, 0, 1.3)
 place(sfx, hp(noise(0.006), 2000, 2), flare + 0.008, 0, 0.25)  # the contact's second bounce
 
 

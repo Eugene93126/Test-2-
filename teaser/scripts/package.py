@@ -109,7 +109,11 @@ def sync_checks(mp4, frames_dir, path):
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
+    import soundfile as sf
+    from scipy.signal import correlate
     audio = decode_audio(mp4)
+    mix, _ = sf.read(os.path.join(AUDIO, 'mix.wav'))
+    mix = mix.mean(axis=1).astype(np.float32)
     checks = [(3.0, 'S2: spheres roll in, first pulse'), (10.8, 'stamp impact cut + thud'), (12.0, 'first card lands'), (18.6, 'relay clunk, cut to black')]
     rows = []
     fig, axes = plt.subplots(len(checks), 2, figsize=(14, 3.2 * len(checks)), gridspec_kw={'width_ratios': [1, 1.4]})
@@ -120,7 +124,12 @@ def sync_checks(mp4, frames_dir, path):
             target = TL['events']['flare'][0]
         else:
             target = t
-        on, rise, peak = onset_near(audio, target)
+        # Onset measured on the mix itself (lossless); the MP4 is checked for
+        # alignment to the mix by cross-correlation round the same moment.
+        on, rise, peak = onset_near(mix, target)
+        a0, a1 = int((t - 0.3) * 48000), int((t + 0.3) * 48000)
+        xc = correlate(audio[a0:a1], mix[a0:a1], mode='full', method='fft')
+        lag_ms = (int(np.argmax(xc)) - (a1 - a0 - 1)) / 48.0
         f = round(t * FPS)
         before = Image.open(os.path.join(frames_dir, f'f{f - 1:04d}.{e}')).convert('RGB')
         at = Image.open(os.path.join(frames_dir, f'f{f:04d}.{e}')).convert('RGB')
@@ -135,7 +144,7 @@ def sync_checks(mp4, frames_dir, path):
         ax_au.axvline(t, color='#D97757', lw=1, label='picture event')
         ax_au.axvline(on, color='#2A4596', lw=1, ls='--', label=f'audio onset {on:.3f} s')
         ax_au.set_xlim(t - 0.25, t + 0.25); ax_au.legend(fontsize=8, loc='upper left'); ax_au.set_title(what, fontsize=9)
-        rows.append({'t': t, 'what': what, 'audio_onset': round(on, 4), 'offset_ms': round((on - target) * 1000, 1), 'rise_db': round(rise, 1)})
+        rows.append({'t': t, 'what': what, 'audio_onset': round(on, 4), 'offset_ms': round((on - target) * 1000, 1), 'rise_db': round(rise, 1), 'mp4_lag_ms': round(lag_ms, 2)})
     plt.tight_layout()
     plt.savefig(path, dpi=80)
     return rows
@@ -180,8 +189,8 @@ def main(kind):
         f"| True peak (MP4) | ≤ −1 dBTP | {loud_mp4['true_peak_dbtp']} dBTP |",
         f"| Loudness / true peak (mix.wav) | −14 LUFS, ≤ −1 dBTP | {loud_wav['integrated_lufs']} LUFS, {loud_wav['true_peak_dbtp']} dBTP |",
         f"| File size | | {int(p['format']['size']) / 1e6:.1f} MB ({int(p['format']['bit_rate']) / 1e6:.1f} Mb/s) |",
-        '', '## Sync spot-checks', '', '| Time | Event | Audio onset | Offset | Rise |', '|---|---|---|---|---|',
-    ] + [f"| {r['t']:.3f} s | {r['what']} | {r['audio_onset']:.3f} s | {r['offset_ms']:+.1f} ms | +{r['rise_db']} dB |" for r in sync] + [
+        '', '## Sync spot-checks', '', '| Time | Event | Audio onset (mix) | Offset | Rise | MP4 audio vs mix |', '|---|---|---|---|---|---|',
+    ] + [f"| {r['t']:.3f} s | {r['what']} | {r['audio_onset']:.3f} s | {r['offset_ms']:+.1f} ms | +{r['rise_db']} dB | {r['mp4_lag_ms']:+.2f} ms |" for r in sync] + [
         '', 'One frame at 60 fps is 16.7 ms. The 18.6 check measures the relay clunk against the one-frame flare (18.583 s) that precedes the cut to black.',
         '', 'See `sync_checks.png` (frame before | frame at each event, beside the waveform) and `contact_sheet.png` (one frame every 0.5 s).',
     ]
