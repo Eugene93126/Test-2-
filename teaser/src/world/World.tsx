@@ -39,7 +39,8 @@ const TAN = Math.tan(THREE.MathUtils.degToRad(FOV / 2)) * 2
 
 function Rig({ t, frame }: { t: number; frame: number }) {
   const cam = useThree(s => s.camera) as THREE.PerspectiveCamera
-  const c = camera(t)
+  const sq = useThree(s => s.size.width / s.size.height < 1.3)
+  const c = camera(t, sq)
   const H = c.h / TAN
   const sx = c.shake ? (hash2(frame, 1) - 0.5) * c.h * 0.03 : 0
   const sz = c.shake ? (hash2(frame, 2) - 0.5) * c.h * 0.03 : 0
@@ -366,7 +367,7 @@ function Post({ t, frame, h, perf = false }: { t: number; frame: number; h: numb
 export function World({ t, frame, post = true, perf = false }: { t: number; frame: number; post?: boolean; perf?: boolean }) {
   const T0 = performance.now()
   const L = light(t)
-  const cam = camera(t)
+  const cam = camera(t, useThree(s => s.size.width / s.size.height < 1.3))
 
   // Report: ellipse, then (later) the seal. Repainted only when it changes.
   const [e0, e1] = ev('ellipse')

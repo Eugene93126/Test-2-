@@ -19,7 +19,7 @@ export const Teaser = () => {
   }, [handle])
   if (!ready) return null
   const [b0, b1] = ev('black')
-  const scale = width / 1920
+  const scale = height / 1080
   return (
     <AbsoluteFill style={{ background: '#0B0E12' }}>
       {t < b0 && (

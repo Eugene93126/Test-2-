@@ -87,6 +87,6 @@ On the 100 BPM grid (beat 0.6 s): 3.0, 10.8, 12.0 and 18.6 fall on beats. 16.0 d
 4. Final picture at 1080p60. ✔ `scripts/render.mjs`
 5. Audio from the timeline; mix to −14 LUFS, ≤ −1 dBTP; stems. ✔ `audio/synth.py`
 6. Mux and QA: ffprobe duration and codecs, ebur128 loudness, contact sheet, sync spot-checks at 3.0 / 10.8 / 12.0 / 18.6. ✔ `scripts/package.py`, `deliverables/QA.md`
-7. Square 1080×1080 recompose (laid out again per shot, not cropped).
+7. Square 1080×1080 recompose (laid out again per shot, not cropped). ✔ `deliverables/teaser_square.mp4` (see README, "The square cut")
 
 Remotion licence note: free for individuals and companies of up to three people; larger companies need a company licence.

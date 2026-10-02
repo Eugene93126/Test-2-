@@ -1,6 +1,7 @@
 """Mux and QA: picture + mix → MP4, contact sheet, stems, sync and loudness report.
 
     python3 scripts/package.py final     # out/frames/final (1080p60 PNG) → deliverables/teaser_1080p.mp4 + QA
+    python3 scripts/package.py square    # out/frames/square (1080×1080 PNG) → deliverables/teaser_square.mp4 + QA_square
     python3 scripts/package.py rough     # out/frames/rough (720p, every 3rd frame) → deliverables/rough_cut_720p.mp4
 """
 import json
@@ -72,12 +73,14 @@ def renumber(src, every):
 def contact_sheet(frames_dir, path):
     """One frame every 0.5 s, 8 × 5, timecodes under each."""
     font = ImageFont.truetype(FONT, 15)
-    tw, th, gap, lab = 360, 203, 10, 24
+    e = ext(frames_dir)
+    w0, h0 = Image.open(os.path.join(frames_dir, f'f0000.{e}')).size
+    tw = 360 if w0 > h0 else 260
+    th, gap, lab = round(tw * h0 / w0), 10, 24
     times = [i * 0.5 for i in range(int(DUR / 0.5))]
     cols, rows = 8, (len(times) + 7) // 8
     sheet = Image.new('RGB', (cols * tw + (cols + 1) * gap, rows * (th + lab) + (rows + 1) * gap), (11, 14, 18))
     g = ImageDraw.Draw(sheet)
-    e = ext(frames_dir)
     for k, t in enumerate(times):
         f = round(t * FPS)
         im = Image.open(os.path.join(frames_dir, f'f{f:04d}.{e}')).convert('RGB').resize((tw, th), Image.LANCZOS)
@@ -116,8 +119,9 @@ def sync_checks(mp4, frames_dir, path):
     mix = mix.mean(axis=1).astype(np.float32)
     checks = [(3.0, 'S2: spheres roll in, first pulse'), (10.8, 'stamp impact cut + thud'), (12.0, 'first card lands'), (18.6, 'relay clunk, cut to black')]
     rows = []
-    fig, axes = plt.subplots(len(checks), 2, figsize=(14, 3.2 * len(checks)), gridspec_kw={'width_ratios': [1, 1.4]})
     e = ext(frames_dir)
+    w0, h0 = Image.open(os.path.join(frames_dir, f'f0000.{e}')).size
+    fig, axes = plt.subplots(len(checks), 2, figsize=(14, 3.2 * len(checks)), gridspec_kw={'width_ratios': [1, 1.4] if w0 > h0 else [1, 1.6]})
     for (t, what), (ax_im, ax_au) in zip(checks, axes):
         if t == 18.6:
             # The clunk lands with the one-frame flare just before black.
@@ -159,31 +163,35 @@ def main(kind):
         p = probe(out)
         print(json.dumps(p, indent=1))
         return
-    frames = os.path.join(ROOT, 'out', 'frames', 'final')
+    square = kind == 'square'
+    frames = os.path.join(ROOT, 'out', 'frames', 'square' if square else 'final')
     n = len([f for f in os.listdir(frames) if f.endswith('.png')])
     assert n == round(DUR * FPS), f'{n} frames on disk, expected {round(DUR * FPS)}'
-    out = os.path.join(OUT, 'teaser_1080p.mp4')
+    name = 'teaser_square.mp4' if square else 'teaser_1080p.mp4'
+    sfx = '_square' if square else ''
+    out = os.path.join(OUT, name)
     encode(frames, FPS, out, os.path.join(AUDIO, 'mix.wav'))
-    stems = os.path.join(OUT, 'audio_stems')
-    os.makedirs(stems, exist_ok=True)
-    for f in ('music.wav', 'sfx.wav', 'mix.wav'):
-        shutil.copy(os.path.join(AUDIO, f), os.path.join(stems, f))
-    contact_sheet(frames, os.path.join(OUT, 'contact_sheet.png'))
+    if not square:
+        stems = os.path.join(OUT, 'audio_stems')
+        os.makedirs(stems, exist_ok=True)
+        for f in ('music.wav', 'sfx.wav', 'mix.wav'):
+            shutil.copy(os.path.join(AUDIO, f), os.path.join(stems, f))
+    contact_sheet(frames, os.path.join(OUT, f'contact_sheet{sfx}.png'))
     p = probe(out)
     loud_mp4 = loudness(out)
     loud_wav = loudness(os.path.join(AUDIO, 'mix.wav'))
-    sync = sync_checks(out, frames, os.path.join(OUT, 'sync_checks.png'))
+    sync = sync_checks(out, frames, os.path.join(OUT, f'sync_checks{sfx}.png'))
     v = next(s for s in p['streams'] if s.get('width'))
     a = next(s for s in p['streams'] if s.get('sample_rate'))
     report = {'probe': p, 'loudness_mp4': loud_mp4, 'loudness_mix_wav': loud_wav, 'sync': sync}
-    json.dump(report, open(os.path.join(OUT, 'qa.json'), 'w'), indent=1)
+    json.dump(report, open(os.path.join(OUT, f'qa{sfx}.json'), 'w'), indent=1)
     lines = [
-        '# QA report: teaser_1080p.mp4', '',
+        f'# QA report: {name}', '',
         '| Check | Spec | Measured |', '|---|---|---|',
         f"| Duration (container) | 20.000 s | {float(p['format']['duration']):.3f} s |",
         f"| Video duration / frames | 20.000 s / 1200 | {float(v['duration']):.3f} s / {v.get('nb_frames')} |",
         f"| Frame rate | 60 fps | {v['r_frame_rate']} (avg {v['avg_frame_rate']}) |",
-        f"| Video | H.264 High, 1920×1080, CRF 16 | {v['codec_name']} {v.get('profile')}, {v['width']}×{v['height']}, {v['pix_fmt']} |",
+        f"| Video | H.264 High, {'1080×1080' if square else '1920×1080'}, CRF 16 | {v['codec_name']} {v.get('profile')}, {v['width']}×{v['height']}, {v['pix_fmt']} |",
         f"| Audio | AAC 320 kb/s stereo 48 kHz | {a['codec_name']} {int(a.get('bit_rate', 0)) // 1000} kb/s, {a['channels']} ch, {a['sample_rate']} Hz |",
         f"| Loudness (MP4) | −14 LUFS | {loud_mp4['integrated_lufs']} LUFS |",
         f"| True peak (MP4) | ≤ −1 dBTP | {loud_mp4['true_peak_dbtp']} dBTP |",
@@ -192,9 +200,9 @@ def main(kind):
         '', '## Sync spot-checks', '', '| Time | Event | Audio onset (mix) | Offset | Rise | MP4 audio vs mix |', '|---|---|---|---|---|---|',
     ] + [f"| {r['t']:.3f} s | {r['what']} | {r['audio_onset']:.3f} s | {r['offset_ms']:+.1f} ms | +{r['rise_db']} dB | {r['mp4_lag_ms']:+.2f} ms |" for r in sync] + [
         '', 'One frame at 60 fps is 16.7 ms. The 18.6 check measures the relay clunk against the one-frame flare (18.583 s) that precedes the cut to black.',
-        '', 'See `sync_checks.png` (frame before | frame at each event, beside the waveform) and `contact_sheet.png` (one frame every 0.5 s).',
+        '', f'See `sync_checks{sfx}.png` (frame before | frame at each event, beside the waveform) and `contact_sheet{sfx}.png` (one frame every 0.5 s).',
     ]
-    open(os.path.join(OUT, 'QA.md'), 'w').write('\n'.join(lines) + '\n')
+    open(os.path.join(OUT, f'QA{sfx}.md'), 'w').write('\n'.join(lines) + '\n')
     print('\n'.join(lines))
 
 

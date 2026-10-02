@@ -292,6 +292,18 @@ export function drawSigil(g: Ctx, cx: number, cy: number, R: number, seed: numbe
 
 /* ---------- the page ---------- */
 
+/**
+ * In a square frame the cartouche group (sigil to caption, about 1460 × 600
+ * at 1080 lines) is scaled to fit the width and centred on the page.
+ */
+function groupFrame(g: Ctx, W: number, H: number) {
+  if (W / H >= 1.3) return
+  const u = H / 1080, k = 0.7
+  g.translate(W / 2, H / 2)
+  g.scale(k, k)
+  g.translate(-W / 2, -506 * u)
+}
+
 export function paintReveal(W: number, H: number) {
   return cached(`reveal:${W}x${H}`, () => {
     const c = canvas(W, H), g = ctx2d(c)
@@ -325,29 +337,56 @@ export function paintReveal(W: number, H: number) {
       blossom(pen, x, y, cs * 0.42, r() * 6, COBALT)
     }
 
-    // Chinoiserie stays inside the frame.
+    // Chinoiserie stays inside the frame. Wide: beside the cartouche. Square:
+    // above and below it, since the cartouche takes the full width.
     const inner = m + fh + 10 * u
+    const sq = W / H < 1.3
     g.save()
     g.beginPath(); g.rect(inner + 2, inner + 2, W - 2 * inner - 4, H - 2 * inner - 4); g.clip()
-    // Left: a prunus branch over distant hills and a pagoda.
-    const flowers: P[] = []
-    branch(pen, r, 112 * u, 960 * u, -0.95, 560 * u, 15 * u, 2, COBALT, flowers)
-    flowers.forEach(([x, y], i) => i % 3 === 2 ? pen.dot(x, y, 3.5 * u, COBALT) : blossom(pen, x, y, (11 + r() * 7) * u, r() * 6, COBALT))
-    pagoda(pen, 330 * u, 860 * u, 1.3 * u, COBALT_DIM)
-    for (let k = 0; k < 3; k++) {
-      const pts: P[] = []
-      for (let x = 140 * u; x < 520 * u; x += 6 * u) pts.push([x, (880 + k * 18) * u - Math.sin((x / u - 140) * 0.012 + k) * 26 * u * (1 - k * 0.25)])
-      pen.stroke(pts, { w: 1, ink: COBALT_DIM, wobble: 0.3, taper: 0.8 })
+    const flowers: P[] = [], hang: P[] = []
+    const bloom = (pts: P[], r0: number, r1: number) => pts.forEach(([x, y], i) => i % 3 === 2 ? pen.dot(x, y, 3.5 * u, COBALT) : blossom(pen, x, y, (r0 + r() * r1) * u, r() * 6, COBALT))
+    const hills = (x0: number, x1: number, y0: number) => {
+      for (let k = 0; k < 3; k++) {
+        const pts: P[] = []
+        for (let x = x0; x < x1; x += 6 * u) pts.push([x, y0 + k * 18 * u - Math.sin((x - x0) / u * 0.012 + k) * 26 * u * (1 - k * 0.25)])
+        pen.stroke(pts, { w: 1, ink: COBALT_DIM, wobble: 0.3, taper: 0.8 })
+      }
     }
-    // Right: a plum branch hanging in from the top, a bird, clouds, waves.
-    const hang: P[] = []
-    branch(pen, r, W - 70 * u, 150 * u, 2.25, 420 * u, 11 * u, 2, COBALT, hang)
-    hang.forEach(([x, y], i) => i % 3 === 2 ? pen.dot(x, y, 3.5 * u, COBALT) : blossom(pen, x, y, (10 + r() * 6) * u, r() * 6, COBALT))
-    cloud(pen, W - 360 * u, 300 * u, 1.5 * u, COBALT_DIM)
-    bird(pen, W - 330 * u, 770 * u, 2.1 * u, COBALT)
-    waves(pen, W - 520 * u, W - 110 * u, 930 * u, 22 * u, 3, COBALT_DIM)
-    cloud(pen, 300 * u, 230 * u, 1.2 * u, COBALT_DIM)
+    if (!sq) {
+      // Left: a prunus branch over distant hills and a pagoda.
+      branch(pen, r, 112 * u, 960 * u, -0.95, 560 * u, 15 * u, 2, COBALT, flowers)
+      bloom(flowers, 11, 7)
+      pagoda(pen, 330 * u, 860 * u, 1.3 * u, COBALT_DIM)
+      hills(140 * u, 520 * u, 880 * u)
+      // Right: a plum branch hanging in from the top, a bird, clouds, waves.
+      branch(pen, r, W - 70 * u, 150 * u, 2.25, 420 * u, 11 * u, 2, COBALT, hang)
+      bloom(hang, 10, 6)
+      cloud(pen, W - 360 * u, 300 * u, 1.5 * u, COBALT_DIM)
+      bird(pen, W - 330 * u, 770 * u, 2.1 * u, COBALT)
+      waves(pen, W - 520 * u, W - 110 * u, 930 * u, 22 * u, 3, COBALT_DIM)
+      cloud(pen, 300 * u, 230 * u, 1.2 * u, COBALT_DIM)
+    } else {
+      // Above: the plum hangs in from the top right, under drifting clouds.
+      branch(pen, r, W - 84 * u, 96 * u, 2.5, 330 * u, 10 * u, 2, COBALT, hang)
+      bloom(hang, 9, 6)
+      cloud(pen, 420 * u, 168 * u, 1.15 * u, COBALT_DIM)
+      cloud(pen, 214 * u, 262 * u, 0.95 * u, COBALT_DIM)
+      cloud(pen, W - 330 * u, 250 * u, 0.85 * u, COBALT_DIM)
+      // Below: a prunus limb runs along the foot with the bird on its twig;
+      // hills, the pagoda and waves to the right.
+      branch(pen, r, 84 * u, H - 120 * u, -0.22, 430 * u, 13 * u, 2, COBALT, flowers)
+      bloom(flowers, 10, 6)
+      bird(pen, 236 * u, H - 196 * u, 1.75 * u, COBALT)
+      hills(W * 0.5, W - 100 * u, H - 150 * u)
+      pagoda(pen, W - 250 * u, H - 156 * u, 1.15 * u, COBALT_DIM)
+      waves(pen, W * 0.42, W - 90 * u, H - 104 * u, 18 * u, 2, COBALT_DIM)
+    }
     g.restore()
+
+    // Square: the whole cartouche group, scaled to the width and centred.
+    g.save()
+    groupFrame(g, W, H)
+    const ac = sq ? 0.6 : 1
 
     // The cartouche: a plate with cut corners, strap volutes at the ends,
     // a pendant below, a pediment strap above holding the sigil.
@@ -396,7 +435,7 @@ export function paintReveal(W: number, H: number) {
       strap(pen, bez([cx + s * pw, cy - 40 * u], [cx + s * (pw + 40 * u), cy - 70 * u], [cx + s * (pw + 96 * u), cy - 46 * u], [cx + s * (pw + 92 * u), cy - 8 * u]), 10 * u, SILVER, STEEL, 1.3 * u)
       strap(pen, bez([cx + s * pw, cy + 40 * u], [cx + s * (pw + 30 * u), cy + 66 * u], [cx + s * (pw + 70 * u), cy + 62 * u], [cx + s * (pw + 80 * u), cy + 36 * u]), 8 * u, SILVER, STEEL, 1.2 * u)
       // Acanthus running out toward the border.
-      acanthus(pen, bez([cx + s * (pw + 96 * u), cy + 6 * u], [cx + s * (pw + 170 * u), cy + 70 * u], [cx + s * (pw + 230 * u), cy - 60 * u], [cx + s * (pw + 300 * u), cy - 10 * u], 70), STEEL, u)
+      acanthus(pen, bez([cx + s * (pw + 96 * u), cy + 6 * u], [cx + s * (pw + 96 * u + 74 * u * ac), cy + 70 * u], [cx + s * (pw + 96 * u + 134 * u * ac), cy - 60 * u], [cx + s * (pw + 96 * u + 204 * u * ac), cy - 10 * u], 70), STEEL, u)
     }
     // Pendant below, with the year in Roman capitals.
     pen.stroke([[cx - 150 * u, cy + ph], [cx - 120 * u, cy + ph + 44 * u], [cx + 120 * u, cy + ph + 44 * u], [cx + 150 * u, cy + ph]], { w: 1.8 * u, ink: SILVER, wobble: 0.1, taper: 0.2 })
@@ -431,7 +470,7 @@ export function paintReveal(W: number, H: number) {
     // The date: Bodoni's italic, sliced once like a scan line, its full stop
     // the clay node.
     const title = TEXT.revealTitle.replace(/\.$/, '')
-    const size = 148 * u
+    const size = 148 * u * (sq ? 1.2 : 1)
     const tc = canvas(W, Math.ceil(size * 1.6)), tg = ctx2d(tc)
     tg.font = `italic 500 ${size}px "Bodoni Moda"`
     tg.textBaseline = 'alphabetic'
@@ -487,6 +526,7 @@ export function paintReveal(W: number, H: number) {
     const cw = g.measureText(TEXT.revealCaption).width
     g.restore()
     for (const s of [-1, 1]) pen.line([cx + s * (cw / 2 + 28 * u), cyCap - 7 * u], [cx + s * (cw / 2 + 90 * u), cyCap - 7 * u], { w: 1, ink: STEEL, wobble: 0, taper: 0 })
+    g.restore()
     return c
   })
 }
@@ -499,6 +539,7 @@ export function paintRevealGlitch(g: Ctx, W: number, H: number, k: number) {
   const off = canvas(Math.ceil(R * 5), Math.ceil(R * 5)), og = ctx2d(off)
   drawSigil(og, off.width / 2, off.height / 2, R, 41)
   g.save()
+  groupFrame(g, W, H)
   g.globalCompositeOperation = 'screen'
   g.globalAlpha = 0.8 * k
   g.filter = 'hue-rotate(160deg)'
@@ -508,5 +549,7 @@ export function paintRevealGlitch(g: Ctx, W: number, H: number, k: number) {
   g.restore()
   // A band of the page displaced sideways.
   const y0 = sy + R * 0.2, bh = 10 * u
-  g.drawImage(g.canvas, 0, y0, W, bh, 14 * u * k, y0, W, bh)
+  // (In the square layout the band sits where the scaled group puts it.)
+  const sy0 = W / H < 1.3 ? H / 2 + (y0 - 506 * u) * 0.7 : y0, sbh = W / H < 1.3 ? bh * 0.7 : bh
+  g.drawImage(g.canvas, 0, sy0, W, sbh, 14 * u * k, sy0, W, sbh)
 }

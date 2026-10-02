@@ -2,15 +2,17 @@
 
 A 20-second wordless teaser for the (fictional, in-world) Claude Pantheon 2.0, posted July 7, 2034. Lore: `2034_AI_Landscape_Canon.md`. Concept, shot list, transitions and assets: [`PLAN.md`](PLAN.md). Timing for picture and sound: [`src/timeline.json`](src/timeline.json).
 
-Status: **final 1080p film delivered** (steps 1–6 of 7; the square recompose is step 7). Deliverables are in [`deliverables/`](deliverables/):
+Status: **all seven steps done**: the 1080p film and the square cut. Deliverables are in [`deliverables/`](deliverables/):
 
 | File | What |
 |---|---|
 | `teaser_1080p.mp4` | 1920×1080, 60 fps, H.264 High CRF 16, AAC 320 kb/s stereo, 20.0 s |
-| `rough_cut_720p.mp4` | the rough cut (720p, every third frame, 20 fps) with the same mix |
-| `contact_sheet.png` | one frame every 0.5 s |
+| `teaser_square.mp4` | 1080×1080, same specs and the same mix, recomposed shot by shot (see below) |
+| `rough_cut_720p.mp4` | the rough cut (720p, every third frame, 20 fps); predates the Northern Renaissance pass and the final mix |
+| `contact_sheet.png`, `contact_sheet_square.png` | one frame every 0.5 s |
 | `audio_stems/` | `music.wav`, `sfx.wav`, `mix.wav` (48 kHz, 24-bit) |
-| `QA.md`, `qa.json`, `sync_checks.png` | ffprobe, loudness and sync spot-checks |
+| `QA.md`, `qa.json`, `sync_checks.png` | ffprobe, loudness and sync spot-checks (1080p) |
+| `QA_square.md`, `qa_square.json`, `sync_checks_square.png` | the same for the square cut |
 
 Review stills from earlier steps are in `out/review/` (style frames, the twelve CrossBody cards).
 
@@ -30,6 +32,10 @@ python3 audio/synth.py
 # 3. Mux + QA → deliverables/ (MP4, stems, contact sheet, QA.md, sync_checks.png)
 python3 scripts/package.py final
 
+# Square cut: the same scene laid out again for 1080×1080 → deliverables/teaser_square.mp4 + QA_square.md
+node scripts/render.mjs --comp TeaserSquare --out out/frames/square --format png
+python3 scripts/package.py square
+
 # Rough cut: 720p, every third frame, same mix
 node scripts/render.mjs --out out/frames/rough --format jpeg --scale 0.6667 --every 3
 python3 scripts/package.py rough
@@ -44,6 +50,17 @@ npm run studio                               # scrub the timeline in a browser
 Rendering uses Chromium's headless shell with WebGL on SwiftShader, because the build machine has no GPU: about 5–6 s a frame at 1080p, so the full film takes roughly two hours. Paths are in `scripts/env.mjs`; override with `REMOTION_CHROME` and `REMOTION_GL` (for example `REMOTION_GL=angle` on a machine with a GPU, which is far faster). More tabs (`--concurrency`) do not help on CPU rendering.
 
 `NOPOST=1 node scripts/stills.mjs …` renders without the post chain (depth of field, bloom, tone mapping, grade), which is useful for checking raw lighting.
+
+## The square cut
+
+`TeaserSquare` renders the same world, laid out again shot by shot rather than cropped (`camera(t, sq)` in `src/world/choreo.ts`, `groupFrame` and the square branch in `src/art/reveal.ts`):
+
+- **C0 / S1:** opens wider so the whole prompt card is in frame, then pushes in further, onto the page itself.
+- **S2 / S3 / S4:** the spheres sit a little wider; then the camera pulls back so all three cyanotype bodies (which span the 420 mm sheet) stay in frame, with the table and ruler above and below. The glass disc crosses at the same width.
+- **S4b, the seal:** wider and shifted toward the lower left, so the gloved fingertips holding the page are in the frame beside the stamp.
+- **S5 / S6:** slightly wider on the card stack; S6 pulls back and in as before.
+- **S7, the title page:** the cartouche group is scaled to the width with the date set larger inside the plate; the chinoiserie moves above and below it (the plum branch hangs from the top right under clouds; the bird sits on a prunus limb along the foot; hills, pagoda and waves to the right).
+- The signed-capture strip keeps the same type size as the 1080p film.
 
 ## Northern Renaissance
 

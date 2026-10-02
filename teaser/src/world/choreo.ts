@@ -236,38 +236,46 @@ export function paint(t: number) {
 
 export interface Cam { x: number; z: number; h: number; roll: number; shake: number }
 
-export function camera(t: number): Cam {
+/**
+ * The motion-control camera. `sq` is the 1080×1080 cut, framed again shot by
+ * shot rather than cropped: wider on the prompt card and on the three bodies
+ * (which span the sheet), and on the seal it slides over to keep the gloved
+ * fingertips in the frame.
+ */
+export function camera(t: number, sq = false): Cam {
   const breathe = (s: number) => ({ dx: Math.sin(t * 0.83 + s) * 0.00025, dz: Math.sin(t * 0.61 + s * 2) * 0.0002 })
   const b = breathe(0)
   let c: Cam
   if (t < 3.0) {
-    // C0 drifts in; S1 pushes in 1.00 → 1.08 on the report.
-    const h = t < 1.2 ? lerp(0.4, 0.36, smoother(t / 1.2)) : lerp(0.36, 0.36 / 1.08, inOutCubic(prog(t, 1.2, 3.0)))
-    c = { x: 0, z: 0.002, h, roll: deg(-0.4), shake: 0 }
+    // C0 drifts in; S1 pushes in 1.00 → 1.08 on the report (square: from the
+    // whole card down to the page).
+    const [h0, h1, h2] = sq ? [0.47, 0.42, 0.34] : [0.4, 0.36, 0.36 / 1.08]
+    const h = t < 1.2 ? lerp(h0, h1, smoother(t / 1.2)) : lerp(h1, h2, inOutCubic(prog(t, 1.2, 3.0)))
+    c = { x: sq ? -0.012 * (1 - smoother(prog(t, 1.0, 2.2))) : 0, z: 0.002, h, roll: deg(-0.4), shake: 0 }
     // Into S2: keep pushing in toward the sheet.
-    if (t > 2.7) c.h = lerp(c.h, 0.27, smoother(prog(t, 2.7, 3.0)) * 0.25)
+    if (t > 2.7) c.h = lerp(c.h, sq ? 0.3 : 0.27, smoother(prog(t, 2.7, 3.0)) * 0.25)
   } else if (t < 9.0) {
     const into = smoother(prog(t, 3.0, 4.2))
     const pull = smoother(prog(t, 5.7, 6.6))
-    const h = lerp(lerp(0.3, 0.255, into), 0.295, pull)
+    const h = sq ? lerp(lerp(0.33, 0.29, into), 0.43, pull) : lerp(lerp(0.3, 0.255, into), 0.295, pull)
     c = { x: 0, z: 0.006, h, roll: deg(lerp(-0.4, 0.3, smoother(prog(t, 3, 9)))), shake: 0 }
   } else if (t < 10.8) {
-    c = { x: lerp(-0.006, 0.006, smoother(prog(t, 9, 10.8))), z: 0.006, h: 0.296, roll: deg(0.3), shake: 0 }
+    c = { x: lerp(-0.006, 0.006, smoother(prog(t, 9, 10.8))), z: 0.006, h: sq ? 0.43 : 0.296, roll: deg(0.3), shake: 0 }
   } else if (t < 16.0) {
     const [s0, s1, k0, k1] = ev('stampScale')
     const rp = reportPose(t)
-    const focus = pageToWorld(rp, SEAL.x - 2, SEAL.y - 16)
+    const focus = sq ? pageToWorld(rp, SEAL.x - 15, SEAL.y - 22) : pageToWorld(rp, SEAL.x - 2, SEAL.y - 16)
     const sc = lerp(k0, k1, outCubic(prog(t, s0, s1)))
     const pull = smoother(prog(t, 11.72, 12.18))
-    const h = lerp(0.105 / sc, lerp(0.2, 0.185, smoother(prog(t, 12.2, 16))), pull)
+    const h = lerp((sq ? 0.155 : 0.105) / sc, sq ? lerp(0.215, 0.2, smoother(prog(t, 12.2, 16))) : lerp(0.2, 0.185, smoother(prog(t, 12.2, 16))), pull)
     c = { x: lerp(focus.x, POINT.x, pull), z: lerp(focus.z, POINT.z, pull), h, roll: deg(-0.6), shake: 0 }
     const [sh0, sh1] = ev('stampShake')
     if (t >= sh0 && t < sh1 + 1 / 60) c.shake = 1
   } else {
     const back = outCubic(prog(t, 16.0, 17.1))
     const inn = inCubic(prog(t, 17.2, 18.6))
-    c = { x: POINT.x, z: POINT.z, h: lerp(lerp(0.185, 0.52, back), 0.16, inn), roll: deg(-0.6 + inn * 2), shake: 0 }
+    const [hs, hb] = sq ? [0.2, 0.5] : [0.185, 0.52]
+    c = { x: POINT.x, z: POINT.z, h: lerp(lerp(hs, hb, back), 0.16, inn), roll: deg(-0.6 + inn * 2), shake: 0 }
   }
   return { ...c, x: c.x + b.dx, z: c.z + b.dz }
 }
-
