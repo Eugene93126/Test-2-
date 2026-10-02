@@ -1,0 +1,168 @@
+{
+  "meta": {
+    "title": "Pantheon 2.0 — teaser",
+    "posted": "2034-07-07",
+    "fps": 60,
+    "duration": 20.0,
+    "size": [1920, 1080],
+    "square": [1080, 1080],
+    "bpm": 100,
+    "beat": 0.6,
+    "key": "D minor",
+    "note": "Seconds are the source of truth; every time here is a whole number of frames at 60 fps. Picture (Remotion) and audio (Python) both read this file."
+  },
+
+  "palette": {
+    "ink": "#0B0E12",
+    "slate": "#141A20",
+    "steel": "#5E6B73",
+    "paper": "#D9DDE0",
+    "silver": "#C9D2D8",
+    "table": "#CDD4D0",
+    "cyanotype": "#22496A",
+    "inkBlue": "#1B2733",
+    "clay": "#D97757"
+  },
+
+  "shots": [
+    { "id": "C0", "name": "Prompt", "start": 0.0, "end": 1.2, "still": 1.0,
+      "what": "A glass prompt card on a daylight table: the instruction that made this film." },
+    { "id": "S1", "name": "Archive", "start": 1.2, "end": 3.0, "still": 2.5,
+      "what": "The Columbus incident report; a robot-held pen circles 'desync'." },
+    { "id": "S2", "name": "Three spheres", "start": 3.0, "end": 6.0, "still": 5.6,
+      "what": "Three steel spheres settle in a triangle on paper; iron filings draw the field that links them." },
+    { "id": "S3", "name": "Bodies", "start": 6.0, "end": 9.0, "still": 8.4,
+      "what": "The sheet develops cyanotype blue; the white field lines become the motion paths of three bodies." },
+    { "id": "S4", "name": "Glass + seal", "start": 9.0, "end": 12.0, "still": [9.85, 11.35],
+      "what": "A glass block slides across the drawings; cut to the report as a human hand stamps it SIGNED." },
+    { "id": "S5", "name": "CrossBody-12", "start": 12.0, "end": 16.0, "still": 14.65,
+      "what": "Twelve body cards drop onto the stamped report, faster and faster." },
+    { "id": "S6", "name": "Convergence", "start": 16.0, "end": 18.6, "still": 18.25,
+      "what": "Everything on the table slides into one point as daylight falls to dusk; the point glows clay." },
+    { "id": "BLACK", "name": "Blackout", "start": 18.6, "end": 18.8,
+      "what": "Pure black, digital silence." },
+    { "id": "S7", "name": "Reveal", "start": 18.8, "end": 20.0, "still": 19.5,
+      "what": "July 8. / Edited by Pantheon 2.0" }
+  ],
+
+  "transitions": [
+    { "at": 1.2, "from": "C0", "to": "S1", "kind": "lift", "span": [0.95, 1.55],
+      "how": "A gripper lifts the glass card straight up toward the lens; the incident report lies beneath it." },
+    { "at": 3.0, "from": "S1", "to": "S2", "kind": "pull-away", "span": [2.7, 3.3],
+      "how": "A second gripper drags the report off to the left, uncovering the sheet beneath just as the spheres roll in." },
+    { "at": 6.0, "from": "S2", "to": "S3", "kind": "exposure", "span": [5.7, 6.6],
+      "how": "The spheres roll apart and stretch the field; a band of sunlight sweeps the sheet and it develops blue, leaving the filing lines white." },
+    { "at": 9.0, "from": "S3", "to": "S4", "kind": "glass-wipe", "span": [9.0, 10.6],
+      "how": "A thick glass block is pushed across left to right, bending the drawings as it passes." },
+    { "at": 10.8, "from": "S4 glass", "to": "S4 seal", "kind": "impact-cut",
+      "how": "Hard cut on the stamp's impact, to the incident report lying at the side of the table." },
+    { "at": 12.0, "from": "S4", "to": "S5", "kind": "drop", "span": [11.85, 12.1],
+      "how": "The gloved hand withdraws and the first body card drops onto the stamped report." },
+    { "at": 16.0, "from": "S5", "to": "S6", "kind": "pull-in", "span": [16.0, 18.6],
+      "how": "Cards, sheets, glass, spheres and props slide toward one point while daylight falls to dusk." },
+    { "at": 18.6, "from": "S6", "to": "S7", "kind": "blackout",
+      "how": "Clunky on purpose: one frame of flare as the point ignites fully, then black like a heavy switch." }
+  ],
+
+  "events": {
+    "open": [0.0, 0.35],
+    "promptType": [0.25, 0.95],
+    "cardLift": [0.95, 1.55],
+    "gripperIn": [0.7, 0.95],
+    "reportRotate": [1.2, 3.0, -3, -1],
+    "pushIn": [1.2, 3.0, 1.0, 1.08],
+    "penIn": [1.6, 1.8],
+    "ellipse": [1.8, 2.6],
+    "penOut": [2.6, 2.85],
+    "reportOut": [2.7, 3.3],
+    "sphereRoll": [3.0, 4.0],
+    "sphereSettle": [3.62, 3.8, 3.98],
+    "fieldLines": [4.2, 5.4],
+    "filings": [4.4, 5.8],
+    "spheresApart": [5.7, 6.4],
+    "exposure": [5.9, 6.5],
+    "pathsResolve": [6.2, 7.0],
+    "bodiesDraw": [6.4, 7.2],
+    "bodiesMove": [6.8, 9.0],
+    "glassSlide": [9.0, 10.6],
+    "stampImpact": 10.8,
+    "stampShake": [10.8, 10.833],
+    "stampScale": [10.8, 11.1, 1.15, 1.0],
+    "inkSpread": [10.8, 11.4],
+    "stampHold": [11.4, 12.0],
+    "gloveOut": [11.7, 12.0],
+    "dusk": [16.2, 18.4],
+    "converge": [16.0, 18.6],
+    "ignite": [17.9, 18.6],
+    "flare": [18.583, 18.6],
+    "black": [18.6, 18.8],
+    "reveal": [18.8, 20.0]
+  },
+
+  "flashes": {
+    "start": 12.0,
+    "frames": [33, 30, 27, 24, 22, 20, 18, 16, 14, 13, 12, 11],
+    "bodies": ["industrial arm", "humanoid", "quadruped", "quadcopter", "wheeled carrier", "gantry crane",
+               "hexapod", "snake arm", "dual-arm torso", "forklift unit", "dexterous hand", "rover"]
+  },
+
+  "text": {
+    "prompt": "Make a 20-second film for July 8. Use only what's on this table.",
+    "promptModel": "Pantheon 2.0",
+    "promptClass": "Unified",
+    "reportHeader": "KEYSTONE FRONTIER GROUP · FLEET SAFETY",
+    "reportFile": "FILE KFG-FS-0331",
+    "report": [
+      "INCIDENT REPORT — COLUMBUS DISTRIBUTION CENTER — 14 MAR 2033",
+      "Units affected: 140",
+      "Duration: 41 min",
+      "Cause: weight update rejected at dock; Reflex/Core desync",
+      "Status: resolved, no injuries."
+    ],
+    "circled": "desync",
+    "sealRing": "GATEPOINT · CERTIFIED · 2034 ·",
+    "sealCenter": "SIGNED",
+    "revealTitle": "July 8.",
+    "revealCaption": "Edited by Pantheon 2.0",
+    "edgeCode": "SIGNED CAPTURE · GATEPOINT CHI-07 · UNIT 07"
+  },
+
+  "audio": {
+    "sampleRate": 48000,
+    "bitDepth": 24,
+    "loudness": { "integratedLUFS": -14, "truePeakDBTP": -1 },
+    "music": [
+      { "from": 0.0, "to": 3.0, "part": "drone", "notes": "D1/D2 sine + filtered noise, slow LFO, very quiet" },
+      { "from": 3.0, "to": 12.0, "part": "pad + pulse", "notes": "cold pad D-A-E-F detuned; muted pulse on each beat from 3.0" },
+      { "from": 12.0, "to": 16.0, "part": "locked pulse + arpeggio", "notes": "pulse follows the card flashes and accelerates; high glassy arpeggio" },
+      { "from": 16.0, "to": 18.6, "part": "riser", "notes": "noise + sine sweep up, filter opening; ends exactly at the cut" },
+      { "from": 18.6, "to": 18.8, "part": "silence", "notes": "true digital silence" },
+      { "from": 18.8, "to": 20.0, "part": "final note", "notes": "one soft low piano-like D3, long reverb" }
+    ],
+    "motif": { "notes": ["D", "A", "F"], "where": "the three sphere tinks, the card blips climbing it, resolved by the final D" },
+    "sfx": [
+      { "at": [0.25, 0.95], "cue": "glass key ticks as the prompt types" },
+      { "at": [0.95, 1.55], "cue": "glass card lifting off paper: soft suction release, air" },
+      { "at": [1.2, 1.9], "cue": "faint paper settle as the report drifts" },
+      { "at": [1.8, 2.6], "cue": "ink pen scratch" },
+      { "at": [2.7, 3.3], "cue": "paper drag (report pulled away)" },
+      { "at": [3.0, 4.0], "cue": "three sphere rolls, low rumble" },
+      { "at": [3.62, 3.8, 3.98], "cue": "three metallic tinks, D-A-F" },
+      { "at": [4.2, 6.0], "cue": "rising magnetic shimmer: band-passed noise sweep + faint high tone" },
+      { "at": [5.7, 6.4], "cue": "spheres rolling apart, softer" },
+      { "at": [5.9, 6.5], "cue": "airy light sweep (exposure)" },
+      { "at": [6.0, 9.0], "cue": "quiet servo whirs following limb motion" },
+      { "at": [9.0, 10.6], "cue": "glass slide whoosh with a crystalline edge" },
+      { "at": 10.8, "cue": "stamp THUD: sine drop 120→40 Hz + paper transient + short room" },
+      { "at": [11.7, 12.0], "cue": "cotton glove lifting off paper" },
+      { "at": [12.0, 16.0], "cue": "one tick per card, pitch stepping upward, plus a soft card flap" },
+      { "at": [16.0, 18.6], "cue": "convergence suck-in ending in a heavy relay clunk at 18.6" },
+      { "at": 18.8, "cue": "final note (music)" }
+    ],
+    "rules": [
+      "SFX sit slightly above music.",
+      "Nothing rings past 18.6 except the final note.",
+      "18.6–18.8 is true digital silence."
+    ]
+  }
+}
