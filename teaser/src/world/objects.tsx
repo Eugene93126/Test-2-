@@ -278,18 +278,18 @@ function knitTexture() {
   })
 }
 
-const cotton = new THREE.MeshPhysicalMaterial({ color: '#D3D7D4', roughness: 0.96, sheen: 0.8, sheenColor: new THREE.Color('#F2F4F2'), sheenRoughness: 0.75 })
+const cotton = new THREE.MeshPhysicalMaterial({ color: '#D0D4D1', roughness: 0.97, sheen: 1, sheenColor: new THREE.Color('#F4F6F4'), sheenRoughness: 0.55 })
 const sleeve = new THREE.MeshPhysicalMaterial({ color: '#2A3138', roughness: 0.94, sheen: 0.6, sheenColor: new THREE.Color('#6E7A84'), sheenRoughness: 0.6 })
 
+/** A gloved right hand, palm down, index and middle fingers pressing the page.
+ *  Origin under the knuckles at paper level; fingertips toward local +x. */
 export function Glove({ x, y, z, rot }: { x: number; y: number; z: number; rot: number }) {
   const parts = useMemo(() => {
     const knit = new THREE.CanvasTexture(knitTexture())
     knit.wrapS = knit.wrapT = THREE.RepeatWrapping
     knit.repeat.set(1, 6)
     cotton.bumpMap = knit
-    cotton.bumpScale = 0.00025
-    // Right hand, palm down: index and middle pressing the page, ring and
-    // little finger relaxed, thumb tucked under the side of the hand.
+    cotton.bumpScale = 0.0006
     const F = (path: [number, number, number][], r0: number, r1: number) => {
       const L = path.slice(1).reduce((a, p, i) => a + Math.hypot(p[0] - path[i][0], p[1] - path[i][1], p[2] - path[i][2]), 0)
       return taperTube(path, fingerProfile(r0, r1, L))
@@ -304,7 +304,7 @@ export function Glove({ x, y, z, rot }: { x: number; y: number; z: number; rot: 
   }, [])
   return (
     <group position={[x, y, z]} rotation={[0, rot, 0]}>
-      <Decal x={0.006} z={0.006} y={0.0011} w={0.2} h={0.1} opacity={0.3} tex={softRect(2, 0.1)} />
+      <Decal x={0.01} z={0.004} y={0.0011 - y} w={0.2} h={0.1} opacity={0.3 * Math.max(0, 1 - y * 30)} tex={softRect(2, 0.1)} />
       {parts.map((g, i) => <mesh key={i} geometry={g} castShadow material={cotton} />)}
       {/* Back of the hand, the wrist, a knit cuff and the sleeve. */}
       <mesh position={[-0.038, 0.0215, 0.003]} rotation={[0, 0, -0.1]} scale={[0.05, 0.0145, 0.038]} castShadow material={cotton}><sphereGeometry args={[1, 48, 32]} /></mesh>

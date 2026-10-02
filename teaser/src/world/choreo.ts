@@ -166,17 +166,24 @@ export function glassPose(t: number) {
 
 export function stampPose(t: number) {
   const t0 = at('stampImpact')
-  const rp = reportPose(t)
-  const c = pageToWorld(rp, SEAL.x, SEAL.y)
-  const lift = inCubic(prog(t, t0 + 0.04, t0 + 0.26))
-  return { x: c.x + lift * 0.02, z: c.z - lift * 0.03, y: lift * 0.2, visible: t >= t0 - 0.001 && t < t0 + 0.3 }
+  const c = pageToWorld(reportPose(t), SEAL.x, SEAL.y)
+  // Pulled straight up by the other hand, above the frame.
+  const [l0, l1] = ev('stampLift')
+  const lift = inCubic(prog(t, l0, l1))
+  return { x: c.x + lift * 0.02, z: c.z - lift * 0.04, y: lift * 0.22, visible: t >= t0 - 0.001 && t < l1 }
 }
 
+/** A gloved hand holds the page flat at the lower left; only the fingertips are in frame. */
 export function glovePose(t: number) {
   const rp = reportPose(t)
-  const c = pageToWorld(rp, SEAL.x - 46, SEAL.y + 18)
+  const tip = pageToWorld(rp, SEAL.x - 57, SEAL.y + 19)
+  const a = rp.rot + deg(36)
   const out = inCubic(span(t, ev('gloveOut')))
-  return { x: c.x - out * 0.12, z: c.z + out * 0.03, y: out * 0.03, rot: rp.rot + deg(-14), visible: t >= at('stampImpact') - 0.001 && t < 12.05 }
+  const back = 0.085 + out * 0.11
+  return {
+    x: tip.x - Math.cos(a) * back, z: tip.z + Math.sin(a) * back, y: out * 0.02, rot: a,
+    visible: t >= at('stampImpact') - 0.001 && t < ev('gloveOut')[1] + 0.02,
+  }
 }
 
 /* ---------- S5: cards ---------- */

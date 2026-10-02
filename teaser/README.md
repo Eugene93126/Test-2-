@@ -2,7 +2,7 @@
 
 A 20-second wordless teaser for the (fictional, in-world) Claude Pantheon 2.0, posted July 7, 2034. Lore: `2034_AI_Landscape_Canon.md`. Concept, shot list, transitions and assets: [`PLAN.md`](PLAN.md). Timing for picture and sound: [`src/timeline.json`](src/timeline.json).
 
-Status: **style frames** (step 2 of 7). Animatic, final picture, audio, mux/QA and the square cut come next.
+Status: **style frames ready for review** (step 2 of 7): [`out/review/style_frames.jpg`](out/review/style_frames.jpg), full-size frames in `out/review/style_frames/`. Animatic, final picture, audio, mux/QA and the square cut come next.
 
 ## Re-render
 

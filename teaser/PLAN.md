@@ -19,7 +19,7 @@ Realistic 2034 details:
 ## Stack
 
 - **Remotion 4** (React, frame-accurate) renders every frame; `@remotion/three` runs one continuous three.js tabletop scene whose every object is a pure function of the frame.
-- **three.js:** MeshPhysicalMaterial for steel and the wafer; drei MeshTransmissionMaterial for the glass block and prompt card; drei Lightformers build a studio/window environment procedurally (Poly Haven is unreachable from this machine, and a hand-placed softbox setup is more controllable than an HDRI anyway).
+- **three.js:** MeshPhysicalMaterial for steel and the wafer; drei MeshTransmissionMaterial for the glass disc and prompt card; drei Lightformers build a studio/window environment procedurally (Poly Haven is unreachable from this machine, and a hand-placed softbox setup is more controllable than an HDRI anyway).
 - **Canvas 2D** draws everything printed or inked onto paper: the typewritten report, the ink ellipse, iron filings along computed field lines, the cyanotype photogram, robot line art, the seal, the body cards. Each is a texture on a paper mesh, so glass refracts it and light falls on it.
 - **Post:** custom grade (cool, slightly desaturated, lifted blacks), film grain, vignette, bloom only on highlights, chromatic aberration only during transitions, drifting dust in the sunbeam, camera breathing.
 - **Rendering here:** Chromium headless shell with WebGL on SwiftShader (no GPU). Measured on the smoke test: about 1.4 s per simple frame; full 1080p60 renders will be timed at the animatic stage.
@@ -34,7 +34,7 @@ Realistic 2034 details:
 | JetBrains Mono (indices, captions, edge codes) | github.com/google/fonts | OFL |
 | Instrument Sans (prompt-card UI, matching the glasses prototype) | github.com/google/fonts | OFL |
 | Table, paper, ink, cyanotype, filings, wafer, seal textures | procedural (canvas) | original |
-| Spheres, glass block, grippers, gloved fingers, logbook, wafer, pen, cards | procedural geometry | original |
+| Spheres, glass disc, grippers, gloved hand, logbook, wafer, pen, cards | procedural geometry | original |
 | 15 robot line drawings (3 for S3, 12 for CrossBody-12) | drawn as SVG paths | original |
 | Lighting environment | drei Lightformers | original |
 | Music and SFX | numpy/scipy synthesis | original |
@@ -46,12 +46,12 @@ Realistic 2034 details:
 | Shot | Time | Still for review |
 |---|---|---|
 | C0 Prompt | 0.0–1.2 | 1.0 |
-| S1 Archive | 1.2–3.0 (ellipse 1.8–2.6) | 2.5 |
+| S1 Archive | 1.2–3.0 (ellipse 1.8–2.6) | 2.66 |
 | S2 Three spheres | 3.0–6.0 (tinks 3.62 / 3.80 / 3.98, field from 4.2) | 5.6 |
 | S3 Bodies | 6.0–9.0 | 8.4 |
 | S4 Glass + seal | 9.0–12.0 (glass 9.0–10.6, stamp 10.8) | 9.85 and 11.35 |
 | S5 CrossBody-12 | 12.0–16.0, flashes of 33 30 27 24 22 20 18 16 14 13 12 11 frames (= 240) | 14.65 |
-| S6 Convergence | 16.0–18.6 | 18.25 |
+| S6 Convergence | 16.0–18.6 | 18.55 |
 | Black | 18.6–18.8 | |
 | S7 Reveal | 18.8–20.0 | 19.5 |
 
@@ -64,9 +64,9 @@ On the 100 BPM grid (beat 0.6 s): 3.0, 10.8, 12.0 and 18.6 fall on beats. 16.0 d
 | 1.2 | lift | A gripper lifts the glass prompt card straight up toward the lens; the incident report lies beneath. |
 | 3.0 | pull-away | A second gripper drags the report off to the left, uncovering the sheet as the spheres roll in. |
 | 6.0 | exposure | The spheres roll apart and stretch the field; a band of sunlight sweeps the sheet, which develops cyanotype blue with the filing lines left white. Those lines become the motion paths. |
-| 9.0 | glass wipe | A thick glass block is pushed across, bending the drawings. |
+| 9.0 | glass wipe | A gripper pushes a thick, slightly convex optical disc across; the drawings swell and bend under it. |
 | 10.8 | impact cut | Hard cut on the stamp, to the report now lying at the side of the table. |
-| 12.0 | drop | The glove lifts away; the first body card drops onto the stamped page. |
+| 12.0 | drop | The gloved hand slides off the page; the first body card drops onto the stamped report. |
 | 16.0 | pull-in | Everything on the table slides into one point while daylight falls to dusk. |
 | 18.6 | blackout | Deliberately clunky: one frame of flare, then black like a heavy switch. |
 

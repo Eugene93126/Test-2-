@@ -63,17 +63,19 @@ function Lights({ dusk, ignite }: { dusk: number; ignite: number }) {
         shadow-mapSize={[2048, 2048]} shadow-radius={6} shadow-blurSamples={12} shadow-bias={-0.0004} shadow-normalBias={0.0015} shadow-intensity={0.78}
         shadow-camera-left={-0.8} shadow-camera-right={0.8} shadow-camera-top={0.6} shadow-camera-bottom={-0.6} shadow-camera-near={0.5} shadow-camera-far={3.5} />
       <hemisphereLight args={['#EEF2F5', '#8F969B', lerp(0.5, 0.08, dusk)]} />
-      <pointLight position={[POINT.x, 0.02, POINT.z]} color="#D97757" intensity={ignite * 0.9} distance={0.5} decay={2} />
+      {/* A warm pool around the point (three clamps falloff inside 10 cm, so the cutoff shapes it);
+          the rest of the table stays at dusk. */}
+      <pointLight position={[POINT.x, 0.03, POINT.z]} color="#E0784A" intensity={ignite * 0.03} distance={0.16} decay={2} />
       <Environment resolution={256} frames={1} environmentIntensity={lerp(0.85, 0.1, dusk)}>
         {/* The room the steel reflects: a soft grey studio, bright paper below, a dark lens above. */}
         <mesh scale={8}><sphereGeometry args={[1, 32, 16]} /><meshBasicMaterial color="#6E767C" side={THREE.BackSide} /></mesh>
         <mesh position={[0, -0.6, 0]} rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[6, 48]} /><meshBasicMaterial color="#D2D7DA" /></mesh>
         <mesh position={[0, 4.6, 0]} rotation={[Math.PI / 2, 0, 0]}><circleGeometry args={[0.55, 48]} /><meshBasicMaterial color="#141A20" side={THREE.DoubleSide} /></mesh>
-        <Lightformer form="rect" intensity={3.2} position={[-1.7, 2.0, -1.3]} scale={[3.0, 2.0, 1]} target={[0, 0, 0]} />
-        <Lightformer form="rect" intensity={3} position={[1.9, 0.55, 1.1]} scale={[0.12, 2.4, 1]} target={[0, 0, 0]} />
+        <Lightformer form="rect" intensity={6} position={[-1.7, 2.0, -1.3]} scale={[1.5, 1.0, 1]} target={[0, 0, 0]} />
+        <Lightformer form="rect" intensity={3} position={[1.9, 0.3, 1.1]} scale={[0.12, 0.8, 1]} target={[0, 0, 0]} />
         <Lightformer form="rect" intensity={0.35} color="#C4C9CD" position={[0, -1.2, 0]} scale={[6, 6, 1]} target={[0, 0, 0]} />
-        {/* Overhead diffusion: flat steel, glass and the wafer catch it. */}
-        <Lightformer form="rect" intensity={0.8} position={[0.2, 4, 0.3]} scale={[6, 5, 1]} target={[0, 0, 0]} />
+        {/* Overhead diffusion, round so the spheres read as polished, not faceted. */}
+        <Lightformer form="ring" intensity={0.5} position={[0, 4, 0]} scale={[2.6, 2.6, 1]} target={[0, 0, 0]} />
       </Environment>
     </>
   )
@@ -153,7 +155,7 @@ function Dust({ t, h }: { t: number; h: number }) {
       z = POINT.z + (dx * Math.sin(sw) + dz * Math.cos(sw)) * (1 - e)
       y = lerp(y, 0.006, e)
       const d = Math.hypot(x - POINT.x, z - POINT.z)
-      glow = (L.ignite * 1.6 + 0.08 * c) / (1 + (d / 0.035) ** 2) * (0.4 + s.b)
+      glow = (L.ignite * 1.0 + 0.06 * c) / (1 + (d / 0.035) ** 2) * (0.4 + s.b)
     }
     pos.setXYZ(i, x, y, z)
     const w = day * 0.22 * (0.25 + s.b)
@@ -168,7 +170,7 @@ function ClayPoint({ ignite }: { ignite: number }) {
   if (ignite <= 0) return null
   const r = 0.0022 + ignite * 0.004
   return (
-    <mesh position={[POINT.x, 0.006, POINT.z]}>
+    <mesh position={[POINT.x, 0.016, POINT.z]}>
       <sphereGeometry args={[r, 32, 24]} />
       <meshBasicMaterial color={new THREE.Color('#D97757').multiplyScalar(2 + ignite * 26)} toneMapped={false} />
     </mesh>
@@ -203,7 +205,7 @@ function Post({ t, frame, h, perf = false }: { t: number; frame: number; h: numb
   const H = h / TAN
   pipe.dof.cocMaterial.worldFocusDistance = H
   pipe.dof.cocMaterial.worldFocusRange = Math.max(0.012, H * 0.05)
-  pipe.bloom.intensity = 0.25 + L.ignite * 1.2
+  pipe.bloom.intensity = 0.25 + L.ignite * 0.8
   // Chromatic aberration only at transitions.
   const transitions = [[0.95, 1.55], [2.7, 3.3], [5.85, 6.55], [9.0, 10.6], [10.8, 10.9], [11.85, 12.1], [17.9, 18.6]]
   let ca = 0
