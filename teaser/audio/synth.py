@@ -446,6 +446,29 @@ suck = tv_filter(noise(sec), lambda tt, f: 1 / (1 + (f / (150 + 5000 * (tt / sec
 suck = suck / (np.abs(suck).max() + 1e-9) * k ** 3
 sub = np.sin(2 * np.pi * np.cumsum(30 + 50 * k ** 2) / SR) * k ** 2
 place(sfx, suck * 0.9 + sub * 0.5, c0, 0, 0.3)
+# The smear of sparks drawing into the glyph, and the chord when it resolves.
+g0, g1 = EV['glyphResolve']
+sec = g1 - g0
+t = T(sec)
+k = t / sec
+air = bp(noise(sec), 5500, 11000, 2) * (0.2 + 0.8 * k ** 1.5)
+spk = np.zeros((len(t), 2))
+for _ in range(260):
+    at = sec * rng.random() ** 0.6
+    f = rng.uniform(3200, 7600)
+    tt = T(0.08)
+    blip = np.sin(2 * np.pi * f * tt) * np.exp(-tt / 0.012) * rng.uniform(0.2, 1)
+    pan = rng.uniform(-0.8, 0.8)
+    i = int(at * SR)
+    j = min(len(t), i + len(blip))
+    ang = (pan + 1) * np.pi / 4
+    spk[i:j, 0] += blip[: j - i] * np.cos(ang)
+    spk[i:j, 1] += blip[: j - i] * np.sin(ang)
+shimmer2 = np.stack([air, air], axis=1) * 0.5 + spk * 0.35
+place(sfx, shimmer2 * env_ar(len(t), 0.25, 0.05)[:, None], g0, 0, 0.09)
+chord = sum(glass_note(hz(n), 0.5) for n in ('D6', 'A6', 'F6')) / 3
+place(sfx, chord, g1, 0, 0.16)
+
 flare = EV['flare'][0]
 t = T(0.035)
 click = hp(noise(0.035), 1200, 2) * np.exp(-t / 0.003)

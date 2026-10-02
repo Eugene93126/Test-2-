@@ -165,6 +165,8 @@
       { "at": [11.7, 12.0], "cue": "cotton glove sliding off the paper" },
       { "at": [12.0, 16.0], "cue": "one tick per card, pitch stepping upward, plus a soft card flap" },
       { "at": [16.0, 18.6], "cue": "convergence suck-in ending in a heavy relay clunk at 18.6" },
+      { "at": [17.3, 18.2], "cue": "the smear of sparks drawing in: a soft glassy shimmer, sparkle thickening" },
+      { "at": 18.2, "cue": "the glyph resolves: a quiet D-A-F glass-bell chord" },
       { "at": 18.8, "cue": "final note (music)" }
     ],
     "rules": [

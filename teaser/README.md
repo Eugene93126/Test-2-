@@ -45,6 +45,18 @@ Rendering uses Chromium's headless shell with WebGL on SwiftShader, because the 
 
 `NOPOST=1 node scripts/stills.mjs …` renders without the post chain (depth of field, bloom, tone mapping, grade), which is useful for checking raw lighting.
 
+## Northern Renaissance
+
+Five touches, mixed into the film's cool, modern look:
+
+- **Painted moments.** The archive (C0, S1), the seal (S4b) and S6's candlelit still life take a van Eyck panel grade in `src/post/Grade.ts` (`uPaint`, weights from the timeline's `paint*` events): lead-white highlights under a faint varnish, olive-umber shadows, an umber panel edge, a fine craquelure that shows only in the light, crisper detail and deep focus. The machine scenes stay cool.
+- **Lapis cyanotype.** The photogram's blue is ultramarine, the ground-lapis pigment of the Flemish panels, with visible granules.
+- **Dürer's burin.** The cyanotype robots are drawn as engravings (`engrave` in the sketch renderer): regular swelling lines laid with the form, contour rings, diamond cross-hatching with dots in the deepest cells, level engraved ground shadows.
+- **Arnolfini mirror.** The steel balls reflect a leaded window, the overhead capture rig and a small figure by the window.
+- **Holbein's anamorphosis.** In S6 a stretched smear of sparks lies across the table, resolves into the lens glyph with the clay point as its dot (18.2 s), holds, and is pulled into the light. The clay point flickers like a candle. The sound follows: a glassy shimmer as the smear draws in, a quiet D-A-F bell chord as it resolves.
+
+Clay stays the only saturated warm colour; the period's warmth goes into the paper and the depth of the shadows.
+
 ## Sound
 
 Everything is synthesised by `audio/synth.py` with numpy and scipy: no samples, no recordings, no third-party music. 100 BPM, D minor; the motif is D–A–F (the three sphere tinks, the card blips climbing D minor, resolved by the final D).
