@@ -74,6 +74,7 @@ const withLength = (pts: { x: number; y: number }[], from: number): Line => {
 
 /** The principal field lines: leaving each north pole, fanned evenly. */
 export const MAIN_LINES: Line[] = (() => {
+  const t0 = performance.now()
   const out: Line[] = []
   SPHERES.forEach((p, si) => {
     const n = 14
@@ -87,6 +88,7 @@ export const MAIN_LINES: Line[] = (() => {
       if (pts.length > 8) out.push(withLength(pts, si))
     }
   })
+  console.log(`[perf] main lines ${(performance.now() - t0).toFixed(0)}ms`)
   return out
 })()
 
@@ -97,6 +99,7 @@ export interface Filing { x: number; y: number; a: number; l: number; w: number;
  * strong, as real filings clump into whiskers along the lines.
  */
 export const FILINGS: Filing[] = (() => {
+  const t0 = performance.now()
   const r = rng(3301)
   const out: Filing[] = []
   for (let tries = 0; out.length < 62000 && tries < 400000; tries++) {
@@ -129,6 +132,7 @@ export const FILINGS: Filing[] = (() => {
     if (nearest(x, y) < SPHERE_R * 1.3) continue
     out.push({ x, y, a: r() * Math.PI, l: 0.4 + r() * 0.8, w: 0.13 + r() * 0.1, tone: r(), reveal: 0.3 + r() * 0.7 })
   }
+  console.log(`[perf] filings ${out.length} in ${(performance.now() - t0).toFixed(0)}ms`)
   return out
 })()
 

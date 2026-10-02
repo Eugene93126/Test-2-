@@ -19,6 +19,19 @@ import {
 import { GlassBlock, Glove, Gripper, Logbook, Pen, PromptCard, Ruler, Sphere, Stamp, Table, Wafer } from './objects'
 import { GradeEffect } from '../post/Grade'
 
+/**
+ * Repaint a canvas only when its inputs change; the version bumps so the
+ * texture re-uploads only then (uploads with mipmaps are slow without a GPU).
+ */
+const paintCache = new Map<string, { key: string; canvas: HTMLCanvasElement; version: number }>()
+function painted(name: string, key: string, paint: () => HTMLCanvasElement) {
+  const hit = paintCache.get(name)
+  if (hit && hit.key === key) return hit
+  const next = { key, canvas: paint(), version: (hit?.version ?? 0) + 1 }
+  paintCache.set(name, next)
+  return next
+}
+
 const FOV = 20
 const TAN = Math.tan(THREE.MathUtils.degToRad(FOV / 2)) * 2
 
@@ -46,7 +59,7 @@ function Lights({ dusk, ignite }: { dusk: number; ignite: number }) {
     <>
       <primitive object={target} />
       <directionalLight ref={key} position={[-0.75, 1.5, -0.9]} target={target} intensity={lerp(3.0, 0.22, dusk)} color={keyColor} castShadow
-        shadow-mapSize={[4096, 4096]} shadow-radius={9} shadow-blurSamples={20} shadow-bias={-0.0004} shadow-normalBias={0.0015} shadow-intensity={0.78}
+        shadow-mapSize={[2048, 2048]} shadow-radius={6} shadow-blurSamples={12} shadow-bias={-0.0004} shadow-normalBias={0.0015} shadow-intensity={0.78}
         shadow-camera-left={-0.8} shadow-camera-right={0.8} shadow-camera-top={0.6} shadow-camera-bottom={-0.6} shadow-camera-near={0.5} shadow-camera-far={3.5} />
       <hemisphereLight args={['#EEF3F5', '#8E9A95', lerp(0.5, 0.08, dusk)]} />
       <pointLight position={[POINT.x, 0.02, POINT.z]} color="#D97757" intensity={ignite * 0.9} distance={0.5} decay={2} />
@@ -113,14 +126,16 @@ function ClayPoint({ ignite }: { ignite: number }) {
  * The post chain, built synchronously so Remotion's single render per frame
  * already goes through it: depth of field, bloom, AgX tone mapping, grade.
  */
-function Post({ t, frame, h }: { t: number; frame: number; h: number }) {
+function Post({ t, frame, h, perf = false }: { t: number; frame: number; h: number; perf?: boolean }) {
   const gl = useThree(s => s.gl), scene = useThree(s => s.scene), cam = useThree(s => s.camera), size = useThree(s => s.size)
   const pipe = useMemo(() => {
     gl.toneMapping = THREE.NoToneMapping
+    // Shadow maps render once per frame, not again for every transmission pass.
+    gl.shadowMap.autoUpdate = false
     const composer = new PPComposer(gl, { frameBufferType: THREE.HalfFloatType, multisampling: 0 })
     composer.addPass(new RenderPass(scene, cam))
-    const dof = new DepthOfFieldEffect(cam, { worldFocusDistance: 1, worldFocusRange: 0.05, bokehScale: 2.4, resolutionScale: 0.6 })
-    const bloom = new BloomEffect({ mipmapBlur: true, intensity: 0.25, luminanceThreshold: 0.92, luminanceSmoothing: 0.2, radius: 0.7 })
+    const dof = new DepthOfFieldEffect(cam, { worldFocusDistance: 1, worldFocusRange: 0.05, bokehScale: 2.4, resolutionScale: 0.5 })
+    const bloom = new BloomEffect({ mipmapBlur: true, intensity: 0.25, luminanceThreshold: 0.92, luminanceSmoothing: 0.2, radius: 0.7, levels: 5 })
     const tone = new ToneMappingEffect({ mode: ToneMappingMode.NEUTRAL })
     const grade = new GradeEffect()
     composer.addPass(new EffectPass(cam, dof))
@@ -148,37 +163,68 @@ function Post({ t, frame, h }: { t: number; frame: number; h: number }) {
   g.set('uVignette', lerp(0.2, 0.42, L.dusk))
   g.set('uFlare', L.flare ? 0.88 : 0)
 
-  useFrame((_, dt) => pipe.composer.render(dt), 1)
+  useFrame((_, dt) => {
+    const a = performance.now()
+    if (perf) {
+      // Time the scene's own passes (shadows, transmission) separately from the post chain.
+      const ctx = gl.getContext() as WebGL2RenderingContext
+      const px = new Uint8Array(4)
+      ctx.readPixels(0, 0, 1, 1, ctx.RGBA, ctx.UNSIGNED_BYTE, px)
+    }
+    const b = performance.now()
+    gl.shadowMap.needsUpdate = true
+    pipe.composer.render(dt)
+    if (perf) {
+      const ctx = gl.getContext() as WebGL2RenderingContext
+      const px = new Uint8Array(4)
+      ctx.readPixels(0, 0, 1, 1, ctx.RGBA, ctx.UNSIGNED_BYTE, px)
+      console.log(`[perf] frame ${frame} pre ${(b - a).toFixed(0)}ms composer ${(performance.now() - b).toFixed(0)}ms`)
+    }
+  }, 1)
   return null
 }
 
-export function World({ t, frame, post = true }: { t: number; frame: number; post?: boolean }) {
+export function World({ t, frame, post = true, perf = false }: { t: number; frame: number; post?: boolean; perf?: boolean }) {
+  const T0 = performance.now()
   const L = light(t)
   const cam = camera(t)
 
-  // Report: ellipse, then (later) the seal.
+  // Report: ellipse, then (later) the seal. Repainted only when it changes.
   const [e0, e1] = ev('ellipse')
-  const ellipse = smoother(prog(t, e0, e1))
-  const sealT = t >= 10.8 ? smoother(prog(t, 10.8, 11.4)) : -1
-  const reportMap = paintReport({ ellipse, bleed: smoother(prog(t, e1, e1 + 0.8)), seal: sealT })
+  const q = (v: number) => Math.round(v * 480) / 480
+  const reportState = {
+    ellipse: q(smoother(prog(t, e0, e1))),
+    bleed: q(smoother(prog(t, e1, e1 + 0.8))),
+    seal: t >= 10.8 ? q(smoother(prog(t, 10.8, 11.4))) : -1,
+  }
+  const report = painted('report', JSON.stringify(reportState), () => paintReport(reportState))
   const rp = reportPose(t)
+  const T1 = performance.now()
 
-  // Sheet: filings, exposure, morph, bodies.
-  const sheetMap = paintSheet({
-    t,
-    lines: smoother(span(t, ev('fieldLines'))),
-    filings: smoother(span(t, ev('filings'))),
-    stretch: inQuart(span(t, ev('spheresApart'))) * 0.9 + smoother(span(t, ev('spheresApart'))) * 0.1,
-    front: t < ev('exposure')[0] ? -1e3 : lerp(-60, SHEET_MM.w + 120, smoother(span(t, ev('exposure')))),
-    morph: smoother(span(t, ev('pathsResolve'))),
-    bodies: smoother(span(t, ev('bodiesDraw'))),
-  })
+  // Sheet: filings, exposure, morph, bodies. The bodies stop once the sheet
+  // leaves the frame (10.6), so it isn't repainted for the rest of the film.
+  const ts = Math.min(t, 10.6)
+  const sheetState = {
+    t: q(ts),
+    lines: q(smoother(span(ts, ev('fieldLines')))),
+    filings: q(smoother(span(ts, ev('filings')))),
+    stretch: q(inQuart(span(ts, ev('spheresApart'))) * 0.9 + smoother(span(ts, ev('spheresApart'))) * 0.1),
+    front: ts < ev('exposure')[0] ? -1e3 : q(lerp(-60, SHEET_MM.w + 120, smoother(span(ts, ev('exposure'))))),
+    morph: q(smoother(span(ts, ev('pathsResolve')))),
+    bodies: q(smoother(span(ts, ev('bodiesDraw')))),
+  }
+  // Before the bodies appear, time itself doesn't change the sheet.
+  const sheetKey = JSON.stringify({ ...sheetState, t: sheetState.bodies > 0 ? sheetState.t : 0 })
+  const sheetPaint = painted('sheet', sheetKey, () => paintSheet(sheetState))
   const sheet = converge(t, SHEET_POS, 3)
+  const T2 = performance.now()
+  if (perf) console.log(`[perf] frame ${frame} report ${(T1 - T0).toFixed(0)}ms sheet ${(T2 - T1).toFixed(0)}ms`)
 
   const card = cardPose(t)
   const [p0, p1] = ev('promptType')
   const typed = smoother(prog(t, p0, p1))
-  const promptMap = card.visible ? paintPrompt(typed, Math.floor(t * 3.2) % 2 === 0 || typed < 1) : null
+  const caret = Math.floor(t * 3.2) % 2 === 0 || typed < 1
+  const prompt = card.visible ? painted('prompt', `${q(typed)}:${caret}`, () => paintPrompt(typed, caret)) : null
 
   const gA = gripperA(t), gB = gripperB(t)
   const glass = glassPose(t)
@@ -192,8 +238,8 @@ export function World({ t, frame, post = true }: { t: number; frame: number; pos
       <Lights dusk={L.dusk} ignite={L.ignite} />
       <Table dusk={L.dusk} />
 
-      <Paper pose={sheet} wm={SHEET_MM.w / 1000} hm={SHEET_MM.h / 1000} map={sheetMap} version={frame} seed={2} shadow={0.28} />
-      <Paper pose={rp} wm={REPORT_MM.w / 1000} hm={REPORT_MM.h / 1000} map={reportMap} version={frame} seed={3} shadow={0.34}
+      <Paper pose={sheet} wm={SHEET_MM.w / 1000} hm={SHEET_MM.h / 1000} map={sheetPaint.canvas} version={sheetPaint.version} seed={2} shadow={0.28} />
+      <Paper pose={rp} wm={REPORT_MM.w / 1000} hm={REPORT_MM.h / 1000} map={report.canvas} version={report.version} seed={3} shadow={0.34}
         lift={Math.sin(span(t, ev('reportOut')) * Math.PI) * 0.0015} />
 
       {FLASHES.map((f, i) => {
@@ -205,7 +251,7 @@ export function World({ t, frame, post = true }: { t: number; frame: number; pos
 
       {[0, 1, 2].map(i => { const s = spherePose(t, i); return s.visible ? <Sphere key={i} {...s} /> : null })}
 
-      {card.visible && promptMap && <PromptCard x={card.x} y={card.y} z={card.z} rot={card.rot} tilt={card.tilt} screen={promptMap} version={frame} />}
+      {card.visible && prompt && <PromptCard x={card.x} y={card.y} z={card.z} rot={card.rot} tilt={card.tilt} screen={prompt.canvas} version={prompt.version} />}
       {glass.visible && <GlassBlock x={glass.x} z={glass.z} rot={glass.rot} />}
       {stamp.visible && <Stamp x={stamp.x} y={stamp.y} z={stamp.z} />}
       {glove.visible && <Glove x={glove.x} y={glove.y} z={glove.z} rot={glove.rot} />}
@@ -218,7 +264,7 @@ export function World({ t, frame, post = true }: { t: number; frame: number; pos
 
       <Motes t={t} />
       <ClayPoint ignite={L.ignite} />
-      {post && <Post t={t} frame={frame} h={cam.h} />}
+      {post && <Post t={t} frame={frame} h={cam.h} perf={perf} />}
     </>
   )
 }

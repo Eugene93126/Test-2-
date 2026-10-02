@@ -15,13 +15,15 @@ const t0 = Date.now()
 const serveUrl = await bundle({ entryPoint: new URL('../src/index.ts', import.meta.url).pathname })
 const logs = process.env.LOGS === '1'
 const opts = { serveUrl, browserExecutable: CHROME, chromiumOptions: { gl: GL }, timeoutInMilliseconds: 240000,
-  onBrowserLog: logs ? l => { if (l.type === 'error' || l.type === 'warning' || l.text.includes('THREE')) console.log(`[${l.type}]`, l.text.slice(0, 400)) } : undefined }
-const inputProps = process.env.NOPOST === '1' ? { post: false } : process.env.SET ? { set: process.env.SET } : {}
+  onBrowserLog: l => { if (l.text.startsWith('[perf]') || (logs && (l.type === 'error' || l.type === 'warning' || l.text.includes('THREE')))) console.log(`+${((Date.now() - T) / 1000).toFixed(1)}s`, l.text.slice(0, 400)) } }
+let T = Date.now()
+const inputProps = { ...(process.env.NOPOST === '1' ? { post: false } : {}), ...(process.env.PERF === '1' ? { perf: true } : {}) }
 opts.inputProps = inputProps
 const composition = await selectComposition({ ...opts, id })
 console.log('bundled in', ((Date.now() - t0) / 1000).toFixed(1), 's')
 for (const s of shots) {
   const t1 = Date.now()
+  T = t1
   const frame = Math.round(s.t * tl.meta.fps)
   await renderStill({ ...opts, composition, frame, output: `${out}${id === 'Teaser' ? '' : id + '-'}${s.id}.png` })
   console.log(s.id, 'frame', frame, ((Date.now() - t1) / 1000).toFixed(1), 's')
