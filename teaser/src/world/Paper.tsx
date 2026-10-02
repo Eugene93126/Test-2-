@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import * as THREE from 'three'
+import { grainTile } from '../art/paper'
 import type { Pose } from './choreo'
 import { canvas, ctx2d, cached } from '../art/canvas'
 
@@ -67,6 +68,14 @@ export function Paper({ pose, wm, hm, map, version = 0, roughness = 0.92, curl =
   const geo = useMemo(() => paperGeometry(wm, hm, curl, seed), [wm, hm, curl, seed])
   const tex = textureFor(map)
   useMemo(() => { tex.needsUpdate = true }, [tex, version])
+  // Paper tooth: a fine tiling bump, one tile per 4 cm, so raking light finds the fibres.
+  const tooth = useMemo(() => {
+    const t = new THREE.CanvasTexture(grainTile('tooth', 512, 21, 2.2))
+    t.wrapS = t.wrapT = THREE.RepeatWrapping
+    t.repeat.set(wm / 0.04, hm / 0.04)
+    t.colorSpace = THREE.NoColorSpace
+    return t
+  }, [wm, hm])
   const shadowTex = useMemo(() => {
     const t = new THREE.CanvasTexture(softRect(wm / hm, 0.035))
     return t
@@ -81,7 +90,7 @@ export function Paper({ pose, wm, hm, map, version = 0, roughness = 0.92, curl =
         <meshBasicMaterial map={shadowTex} transparent opacity={shadow * (1 - Math.min(0.6, lift * 8))} depthWrite={false} />
       </mesh>
       <mesh geometry={geo} rotation={[-Math.PI / 2, 0, 0]} receiveShadow position={[0, lift, 0]}>
-        <meshStandardMaterial map={tex} roughness={roughness} metalness={0} />
+        <meshStandardMaterial map={tex} roughness={roughness} metalness={0} bumpMap={tooth} bumpScale={0.6} />
       </mesh>
     </group>
   )

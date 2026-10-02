@@ -176,7 +176,7 @@ export function stampPose(t: number) {
 /** A gloved hand holds the page flat at the lower left; only the fingertips are in frame. */
 export function glovePose(t: number) {
   const rp = reportPose(t)
-  const tip = pageToWorld(rp, SEAL.x - 57, SEAL.y + 19)
+  const tip = pageToWorld(rp, SEAL.x - 51, SEAL.y + 15)
   const a = rp.rot + deg(36)
   const out = inCubic(span(t, ev('gloveOut')))
   const back = 0.085 + out * 0.11

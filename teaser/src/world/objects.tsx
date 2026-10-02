@@ -6,12 +6,13 @@ import { canvas, ctx2d, cached } from '../art/canvas'
 import { grainTile } from '../art/paper'
 import { logbookCover, tableTexture, TABLE_MM, waferTexture } from '../art/props'
 import { softRect, textureFor } from './Paper'
+import { fbm, hash2, rng } from '../lib/rand'
 
 /* ---------- Materials ---------- */
 
 export const MAT = {
   // Anodised silver: the robots read as instruments, not toys.
-  shell: new THREE.MeshPhysicalMaterial({ color: '#BDC6CB', metalness: 0.62, roughness: 0.34, clearcoat: 0.25, clearcoatRoughness: 0.3 }),
+  shell: new THREE.MeshPhysicalMaterial({ color: '#BDC6CB', metalness: 0.62, roughness: 0.34, clearcoat: 0.25, clearcoatRoughness: 0.3, anisotropy: 0.55 }),
   graphite: new THREE.MeshStandardMaterial({ color: '#363E45', roughness: 0.36, metalness: 0.55 }),
   silicone: new THREE.MeshStandardMaterial({ color: '#1B2025', roughness: 0.82 }),
   steel: new THREE.MeshPhysicalMaterial({ color: '#D3DADF', metalness: 1, roughness: 0.055, envMapIntensity: 1.25 }),
@@ -236,7 +237,7 @@ function taperTube(path: [number, number, number][], radius: (s: number) => numb
       const n = new THREE.Vector3().addScaledVector(N, Math.cos(v) / flat).addScaledVector(B, Math.sin(v)).normalize()
       n.addScaledVector(tan, -Math.max(-6, Math.min(6, slope))).normalize()
       nor.push(n.x, n.y, n.z)
-      uv.push(s * 3, j / R)
+      uv.push(s, j / R)
     }
   }
   for (let i = 0; i < T; i++) for (let j = 0; j < R; j++) {
@@ -278,7 +279,79 @@ function knitTexture() {
   })
 }
 
+/**
+ * One finger of a cotton archive glove, unrolled: u runs knuckle → tip, v
+ * around the finger. Jersey knit (wales along the finger), side seams with
+ * their stitches, creases at the two joints, grey wear on the pads that touch
+ * paper all day. Returns the colour and the height (bump) maps.
+ */
+function fingerMaps() {
+  return {
+    color: cached('glove-finger-color', () => {
+      const W = 1024, H = 512, c = canvas(W, H), g = ctx2d(c)
+      g.fillStyle = '#DCDFDA'
+      g.fillRect(0, 0, W, H)
+      const img = g.getImageData(0, 0, W, H), d = img.data
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const u = x / W, v = y / H
+        const k = (y * W + x) * 4
+        // Cloudy wear, heavier toward the pad and the tip.
+        const mott = (fbm(u * 9, v * 5, 41, 4) - 0.5) * 14
+        const pad = Math.max(0, Math.sin(v * Math.PI * 2 + 1.2)) ** 2
+        const tip = Math.min(1, Math.max(0, (u - 0.8) / 0.2)) ** 1.5
+        const grime = (tip * (0.45 + 0.55 * pad) + 0.08 * pad) * (0.7 + 0.6 * fbm(u * 14, v * 8, 43, 3)) * 34
+        const lint = hash2(x, y, 7) > 0.9993 ? -40 : hash2(x, y, 9) > 0.998 ? 14 : 0
+        for (let ch = 0; ch < 3; ch++) d[k + ch] = Math.max(0, Math.min(255, d[k + ch] + mott - grime * [1, 0.96, 0.9][ch] + lint))
+      }
+      g.putImageData(img, 0, 0)
+      // Seam lines along both sides, a shade darker.
+      g.strokeStyle = 'rgba(150,156,150,0.55)'
+      g.lineWidth = 2
+      for (const v of [0.25, 0.75]) { g.beginPath(); for (let x = 0; x <= W; x += 8) g.lineTo(x, v * H + Math.sin(x * 0.05) * 1.2); g.stroke() }
+      return c
+    }),
+    bump: cached('glove-finger-bump', () => {
+      const W = 1024, H = 512, c = canvas(W, H), g = ctx2d(c)
+      g.fillStyle = '#5A5A5A'
+      g.fillRect(0, 0, W, H)
+      // Jersey: chevrons of two slanted legs, wales running along the finger.
+      const cw = 8.5, ch = 6.4
+      g.lineCap = 'round'
+      g.lineWidth = ch * 0.42
+      for (let y = 0; y < H + ch; y += ch) for (let x = 0; x < W + cw; x += cw) {
+        const j = (hash2(Math.round(x), Math.round(y), 3) - 0.5) * 0.8
+        g.strokeStyle = `rgb(${170 + j * 30},${170 + j * 30},${170 + j * 30})`
+        g.beginPath(); g.moveTo(x, y - ch * 0.45); g.lineTo(x + cw * 0.8, y); g.lineTo(x, y + ch * 0.45); g.stroke()
+      }
+      g.filter = 'blur(0.6px)'
+      g.drawImage(c, 0, 0)
+      g.filter = 'none'
+      // Creases at the two joints: grooves around the finger, wavy, uneven.
+      const r = rng(77)
+      for (const u0 of [0.34, 0.62]) for (let i = 0; i < 4; i++) {
+        const u = u0 + (i - 1.5) * 0.018 + (r() - 0.5) * 0.01
+        g.strokeStyle = `rgba(20,20,20,${0.55 + r() * 0.3})`
+        g.lineWidth = 2 + r() * 2.5
+        g.beginPath()
+        const v0 = r() * 0.3, v1 = 0.55 + r() * 0.45
+        for (let v = v0; v <= v1; v += 0.02) g.lineTo(u * W + Math.sin(v * 17 + i) * 6 + (fbm(v * 6, u * 9, 5, 2) - 0.5) * 14, v * H)
+        g.stroke()
+      }
+      // Side seams: a raised ridge with stitches across it.
+      for (const v of [0.25, 0.75]) {
+        const y = v * H
+        g.strokeStyle = '#D6D6D6'; g.lineWidth = 3.2
+        g.beginPath(); for (let x = 0; x <= W; x += 8) g.lineTo(x, y + Math.sin(x * 0.05) * 1.2); g.stroke()
+        g.strokeStyle = '#2E2E2E'; g.lineWidth = 1.3
+        for (let x = 4; x < W; x += 7) { g.beginPath(); g.moveTo(x, y - 3.4); g.lineTo(x + 2, y + 3.4); g.stroke() }
+      }
+      return c
+    }),
+  }
+}
+
 const cotton = new THREE.MeshPhysicalMaterial({ color: '#D0D4D1', roughness: 0.97, sheen: 1, sheenColor: new THREE.Color('#F4F6F4'), sheenRoughness: 0.55 })
+const fingerCotton = new THREE.MeshPhysicalMaterial({ color: '#FFFFFF', roughness: 0.96, sheen: 1, sheenColor: new THREE.Color('#F6F8F6'), sheenRoughness: 0.5 })
 const sleeve = new THREE.MeshPhysicalMaterial({ color: '#2A3138', roughness: 0.94, sheen: 0.6, sheenColor: new THREE.Color('#6E7A84'), sheenRoughness: 0.6 })
 
 /** A gloved right hand, palm down, index and middle fingers pressing the page.
@@ -289,7 +362,13 @@ export function Glove({ x, y, z, rot }: { x: number; y: number; z: number; rot: 
     knit.wrapS = knit.wrapT = THREE.RepeatWrapping
     knit.repeat.set(1, 6)
     cotton.bumpMap = knit
-    cotton.bumpScale = 0.0006
+    cotton.bumpScale = 2.5
+    const maps = fingerMaps()
+    fingerCotton.map = textureFor(maps.color)
+    const bump = textureFor(maps.bump, false)
+    bump.wrapT = THREE.RepeatWrapping
+    fingerCotton.bumpMap = bump
+    fingerCotton.bumpScale = 4
     const F = (path: [number, number, number][], r0: number, r1: number) => {
       const L = path.slice(1).reduce((a, p, i) => a + Math.hypot(p[0] - path[i][0], p[1] - path[i][1], p[2] - path[i][2]), 0)
       return taperTube(path, fingerProfile(r0, r1, L))
@@ -305,7 +384,11 @@ export function Glove({ x, y, z, rot }: { x: number; y: number; z: number; rot: 
   return (
     <group position={[x, y, z]} rotation={[0, rot, 0]}>
       <Decal x={0.01} z={0.004} y={0.0011 - y} w={0.2} h={0.1} opacity={0.3 * Math.max(0, 1 - y * 30)} tex={softRect(2, 0.1)} />
-      {parts.map((g, i) => <mesh key={i} geometry={g} castShadow material={cotton} />)}
+      {/* Where the pads press the page: tight contact shadows. */}
+      {[[0.074, -0.029], [0.083, -0.0035], [0.051, 0.0175]].map(([cx, cz], i) => (
+        <Decal key={i} x={cx} z={cz} y={0.0012 - y} w={0.026} h={0.019} opacity={0.5 * Math.max(0, 1 - y * 60)} tex={radial('pad', 0.3)} />
+      ))}
+      {parts.map((g, i) => <mesh key={i} geometry={g} castShadow material={fingerCotton} />)}
       {/* Back of the hand, the wrist, a knit cuff and the sleeve. */}
       <mesh position={[-0.038, 0.0215, 0.003]} rotation={[0, 0, -0.1]} scale={[0.05, 0.0145, 0.038]} castShadow material={cotton}><sphereGeometry args={[1, 48, 32]} /></mesh>
       <mesh position={[-0.095, 0.026, 0.002]} rotation={[0, 0, Math.PI / 2 - 0.1]} scale={[1, 1, 0.78]} castShadow material={cotton}><cylinderGeometry args={[0.029, 0.031, 0.05, 40]} /></mesh>

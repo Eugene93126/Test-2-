@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { Environment, Lightformer } from '@react-three/drei'
-import { BloomEffect, DepthOfFieldEffect, EffectComposer as PPComposer, EffectPass, RenderPass, ToneMappingEffect, ToneMappingMode } from 'postprocessing'
+import { BloomEffect, DepthOfFieldEffect, EdgeDetectionMode, EffectComposer as PPComposer, EffectPass, RenderPass, SMAAEffect, SMAAPreset, ToneMappingEffect, ToneMappingMode } from 'postprocessing'
+import { N8AOPostPass } from 'n8ao'
 import * as THREE from 'three'
 import { FLASHES, ev } from '../lib/timeline'
 import { clamp, inQuart, lerp, prog, smoother, span } from '../lib/ease'
@@ -189,6 +190,13 @@ function Post({ t, frame, h, perf = false }: { t: number; frame: number; h: numb
     gl.shadowMap.autoUpdate = false
     const composer = new PPComposer(gl, { frameBufferType: THREE.HalfFloatType, multisampling: 0 })
     composer.addPass(new RenderPass(scene, cam))
+    // Ambient occlusion: the darkening in creases and contacts a path tracer
+    // would give for free (paper on table, steel on paper, fingers on a page).
+    const ao = new N8AOPostPass(scene, cam, size.width, size.height)
+    ao.autosetGamma = false
+    Object.assign(ao.configuration, { aoRadius: 0.018, distanceFalloff: 0.5, intensity: 2.4, aoSamples: 16, denoiseSamples: 8, denoiseRadius: 8, halfRes: true, gammaCorrection: false })
+    composer.addPass(ao)
+    composer.addPass(new EffectPass(cam, new SMAAEffect({ preset: SMAAPreset.HIGH, edgeDetectionMode: EdgeDetectionMode.COLOR })))
     const dof = new DepthOfFieldEffect(cam, { worldFocusDistance: 1, worldFocusRange: 0.05, bokehScale: 2.4, resolutionScale: 0.5 })
     const bloom = new BloomEffect({ mipmapBlur: true, intensity: 0.25, luminanceThreshold: 0.92, luminanceSmoothing: 0.2, radius: 0.7, levels: 5 })
     const tone = new ToneMappingEffect({ mode: ToneMappingMode.NEUTRAL })
@@ -204,7 +212,7 @@ function Post({ t, frame, h, perf = false }: { t: number; frame: number; h: numb
   const L = light(t)
   const H = h / TAN
   pipe.dof.cocMaterial.worldFocusDistance = H
-  pipe.dof.cocMaterial.worldFocusRange = Math.max(0.012, H * 0.05)
+  pipe.dof.cocMaterial.worldFocusRange = Math.max(0.012, H * 0.085)
   pipe.bloom.intensity = 0.25 + L.ignite * 0.8
   // Chromatic aberration only at transitions.
   const transitions = [[0.95, 1.55], [2.7, 3.3], [5.85, 6.55], [9.0, 10.6], [10.8, 10.9], [11.85, 12.1], [17.9, 18.6]]

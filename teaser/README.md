@@ -2,7 +2,7 @@
 
 A 20-second wordless teaser for the (fictional, in-world) Claude Pantheon 2.0, posted July 7, 2034. Lore: `2034_AI_Landscape_Canon.md`. Concept, shot list, transitions and assets: [`PLAN.md`](PLAN.md). Timing for picture and sound: [`src/timeline.json`](src/timeline.json).
 
-Status: **style frames ready for review** (step 2 of 7): [`out/review/style_frames.jpg`](out/review/style_frames.jpg), full-size frames in `out/review/style_frames/`. Animatic, final picture, audio, mux/QA and the square cut come next.
+Status: **style frames v2 ready for review** (step 2 of 7): [`out/review/style_frames.jpg`](out/review/style_frames.jpg), full-size frames in `out/review/style_frames/`, all twelve CrossBody body studies in [`out/review/crossbody_cards.jpg`](out/review/crossbody_cards.jpg) (full size in `out/review/cards/`). Animatic, final picture, audio, mux/QA and the square cut come next.
 
 ## Re-render
 
@@ -28,7 +28,9 @@ Rendering uses Chromium's headless shell with WebGL on SwiftShader, because the 
 - `src/timeline.json` drives everything: shot boundaries, events, the 12 card flashes (33 30 27 24 22 20 18 16 14 13 12 11 frames), the SFX cue sheet and music sections.
 - `src/world/choreo.ts`: every object's pose as a pure function of time (so any frame renders identically, in any order).
 - `src/world/World.tsx`: one continuous tabletop scene. Daylight from a window key light with soft VSM shadows, a procedural studio environment (drei Lightformers) for reflections, and a dusk ramp for S6.
-- `src/art/*`: everything printed or inked onto paper, drawn with Canvas 2D: typewritten report, hand-inked ellipse, Gatepoint seal, iron filings traced along the field of three magnetic spheres, the cyanotype photogram, robot line art, CrossBody cards, the prompt card's screen.
+- `src/art/*`: everything printed or inked onto paper, drawn with Canvas 2D: typewritten report, hand-inked ellipse, Gatepoint seal, iron filings traced along the field of three magnetic spheres, the cyanotype photogram, CrossBody cards, the prompt card's screen.
+- `src/art/sketch/*`: a small 3D-to-ink renderer for the robot drawings. Robots are built from solids (boxes, cylinders, ellipsoids, capsules), projected in perspective (cards) or oblique elevation (the cyanotype), and drawn the way an industrial designer sketches: wobbling, tapering pen strokes, heavier lines on the shadow side, hatching that follows each form, blue ballpoint construction (bounding box, axes, hidden rims), scribbled ground shadows, callouts and hand lettering. `node scripts/stills.mjs CardPreview 0 1 2` renders cards flat for review.
+- Post: N8AO ambient occlusion (contact darkening), SMAA, depth of field, bloom, neutral tone mapping, then the grade.
 - `src/post/Grade.ts`: cool grade with lifted blacks, vignette, grain, chromatic aberration only during transitions, and the one-frame flare before the blackout.
 
 ## Licences

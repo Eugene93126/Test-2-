@@ -2,7 +2,8 @@ import { canvas, ctx2d, cached, copyInto } from './canvas'
 import { paperBase } from './paper'
 import { fbm, rng } from '../lib/rand'
 import { FILINGS, MAIN_LINES, SHEET_CENTER, SHEET_MM, partial, resample } from './field'
-import { armJoints, armPoseAt, drawArm, drawDrone, drawQuad, dronePoseAt, quadPoseAt } from './bodies'
+import { armJoints, armPoseAt, dronePoseAt, quadPoseAt } from './bodies'
+import { armParts, drawElevation, droneParts, quadParts } from './sketch/elevations'
 import type { Ctx } from './canvas'
 
 // The A3 sheet under the spheres. In S2 it is plain paper and the filings
@@ -258,21 +259,31 @@ function drawBodies(g: Ctx, s: SheetState) {
   trail(tt => { const d = dronePoseAt(tt, 100, 65); return toSheet(2, d.x, d.y) }, 1.1, 50)
   g.restore()
 
-  // The bodies, drawn in as if traced by light.
+  // The bodies, drawn as white-ink elevations, revealed from the ground up
+  // as if traced by the light.
   g.globalAlpha = 1
   const reveal = s.bodies
-  const body = (col: number, draw: () => void) => {
-    g.save()
-    g.translate((COLUMNS[col] - 100 * K) * P, (ROW_Y - 65 * K) * P)
-    g.scale(K * P, K * P)
-    g.lineWidth = 1.5
-    g.setLineDash(reveal < 1 ? [reveal * 260, 400] : [])
-    draw()
-    g.restore()
+  const W = g.canvas.width, H = g.canvas.height
+  const layer = scratch('bodies', W, H), lg = ctx2d(layer)
+  lg.setTransform(1, 0, 0, 1, 0, 0)
+  lg.globalCompositeOperation = 'source-over'
+  lg.clearRect(0, 0, W, H)
+  const map = (col: number) => (u: number, v: number): [number, number] => { const q = toSheet(col, u, v); return [q.x * P, q.y * P] }
+  drawElevation(lg, armParts(armPoseAt(t, ARM_BASE)), map(0), K * P, 120, 301)
+  drawElevation(lg, quadParts(quadPoseAt(t, QUAD_X0, QUAD_GROUND)), map(1), K * P, QUAD_GROUND, 302)
+  drawElevation(lg, droneParts(dronePoseAt(t, 100, 65)), map(2), K * P, null, 303)
+  if (reveal < 1) {
+    const top = (ROW_Y - 50) * P, bot = (ROW_Y + 40) * P
+    const edge = bot + (top - bot) * reveal
+    const grd = lg.createLinearGradient(0, edge - 14 * P, 0, edge + 6 * P)
+    grd.addColorStop(0, 'rgba(0,0,0,0)')
+    grd.addColorStop(1, 'rgba(0,0,0,1)')
+    lg.globalCompositeOperation = 'destination-in'
+    lg.fillStyle = grd
+    lg.fillRect(0, 0, W, H)
+    lg.globalCompositeOperation = 'source-over'
   }
-  body(0, () => drawArm(g, armPoseAt(t, ARM_BASE)))
-  body(1, () => drawQuad(g, quadPoseAt(t, QUAD_X0, QUAD_GROUND), false))
-  body(2, () => drawDrone(g, dronePoseAt(t, 100, 65)))
+  g.drawImage(layer, 0, 0)
   // Ground lines and column folds, printed faint.
   g.globalAlpha = 0.35 * reveal
   g.lineWidth = 0.3 * P

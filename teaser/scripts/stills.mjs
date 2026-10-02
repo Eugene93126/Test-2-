@@ -24,7 +24,7 @@ console.log('bundled in', ((Date.now() - t0) / 1000).toFixed(1), 's')
 for (const s of shots) {
   const t1 = Date.now()
   T = t1
-  const frame = Math.round(s.t * tl.meta.fps)
+  const frame = Math.round(s.t * composition.fps)
   await renderStill({ ...opts, composition, frame, output: `${out}${id === 'Teaser' ? '' : id + '-'}${s.id}.png` })
   console.log(s.id, 'frame', frame, ((Date.now() - t1) / 1000).toFixed(1), 's')
 }
