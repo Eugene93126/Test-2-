@@ -16,7 +16,7 @@ const GRAPHITE = '#262C31'
 const CYAN_WHITE = '#EEF4F6'
 
 export function sheetPaper() {
-  return paperBase('sheet', SHEET_MM.w, SHEET_MM.h, { base: '#D7DED2', mottle: 0.45, fibers: 0.3, grain: 5, ppmm: P }, 7)
+  return paperBase('sheet', SHEET_MM.w, SHEET_MM.h, { base: '#DCE0E1', mottle: 0.4, fibers: 0.3, grain: 5, ppmm: P }, 7)
 }
 
 /** A real cyanotype: Prussian blue brushed on, ragged at the edges. */
@@ -31,12 +31,14 @@ export function cyanBase() {
     mg.fillStyle = '#fff'
     const inset = 13 * P
     const r = rng(77)
-    for (let y = inset * 0.8; y < H - inset * 0.8; y += 0.9 * P) {
-      const e1 = inset + (fbm(y / (9 * P), 1, 5, 3) - 0.5) * 16 * P + (r() - 0.5) * 3 * P
-      const e2 = W - inset + (fbm(y / (9 * P), 7, 5, 3) - 0.5) * 16 * P + (r() - 0.5) * 3 * P
+    // Solid inside; only the ends of the strokes are ragged (bristle marks at a
+    // finer scale than the strokes themselves).
+    for (let y = inset * 0.8; y < H - inset * 0.8; y += 0.5 * P) {
+      const e1 = inset + (fbm(y / (9 * P), 1, 5, 3) - 0.5) * 16 * P + (fbm(y / (1.2 * P), 3, 5, 2) - 0.5) * 5 * P + (r() - 0.5) * 0.8 * P
+      const e2 = W - inset + (fbm(y / (9 * P), 7, 5, 3) - 0.5) * 16 * P + (fbm(y / (1.2 * P), 9, 5, 2) - 0.5) * 5 * P + (r() - 0.5) * 0.8 * P
       const topFade = Math.min(1, (y - inset * 0.8) / (5 * P)), botFade = Math.min(1, (H - inset * 0.8 - y) / (5 * P))
-      mg.globalAlpha = Math.min(topFade, botFade) * (0.85 + r() * 0.15)
-      mg.fillRect(e1, y, e2 - e1, 1.2 * P)
+      mg.globalAlpha = Math.min(topFade, botFade)
+      mg.fillRect(e1, y, e2 - e1, 0.6 * P)
     }
     // Density: deep Prussian blue, streaky along the brush direction.
     const col = canvas(W, H), cg = ctx2d(col)
@@ -44,9 +46,9 @@ export function cyanBase() {
     const small = canvas(sw, sh), sg = ctx2d(small)
     const img = sg.createImageData(sw, sh)
     for (let y = 0; y < sh; y++) for (let x = 0; x < sw; x++) {
-      const streak = fbm(x / 70, y / 4, 21, 4)
-      const cloud = fbm(x / 22, y / 22, 23, 4)
-      const v = 0.55 * streak + 0.45 * cloud
+      const streak = fbm(x / 70, y / 18, 21, 3)
+      const cloud = fbm(x / 26, y / 26, 23, 4)
+      const v = 0.18 * streak + 0.82 * cloud
       const k = (y * sw + x) * 4
       img.data[k] = 16 + v * 26
       img.data[k + 1] = 50 + v * 40

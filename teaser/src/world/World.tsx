@@ -32,6 +32,7 @@ function painted(name: string, key: string, paint: () => HTMLCanvasElement) {
   return next
 }
 
+const EXPOSURE = 0.64
 const FOV = 20
 const TAN = Math.tan(THREE.MathUtils.degToRad(FOV / 2)) * 2
 
@@ -61,13 +62,16 @@ function Lights({ dusk, ignite }: { dusk: number; ignite: number }) {
       <directionalLight ref={key} position={[-0.75, 1.5, -0.9]} target={target} intensity={lerp(3.0, 0.22, dusk)} color={keyColor} castShadow
         shadow-mapSize={[2048, 2048]} shadow-radius={6} shadow-blurSamples={12} shadow-bias={-0.0004} shadow-normalBias={0.0015} shadow-intensity={0.78}
         shadow-camera-left={-0.8} shadow-camera-right={0.8} shadow-camera-top={0.6} shadow-camera-bottom={-0.6} shadow-camera-near={0.5} shadow-camera-far={3.5} />
-      <hemisphereLight args={['#EEF3F5', '#8E9A95', lerp(0.5, 0.08, dusk)]} />
+      <hemisphereLight args={['#EEF2F5', '#8F969B', lerp(0.5, 0.08, dusk)]} />
       <pointLight position={[POINT.x, 0.02, POINT.z]} color="#D97757" intensity={ignite * 0.9} distance={0.5} decay={2} />
-      <Environment resolution={256} frames={1} environmentIntensity={lerp(0.7, 0.1, dusk)}>
-        <Lightformer form="rect" intensity={3.2} position={[-1.6, 2.2, -1.2]} scale={[3.2, 1.8, 1]} target={[0, 0, 0]} />
-        <Lightformer form="rect" intensity={1.1} position={[0.6, 3, 0.8]} scale={[1.6, 1.6, 1]} target={[0, 0, 0]} />
-        <Lightformer form="rect" intensity={4} position={[1.4, 1.5, -0.4]} scale={[0.14, 2.6, 1]} target={[0, 0, 0]} />
-        <Lightformer form="rect" intensity={0.35} color="#C3CCC8" position={[0, -1.2, 0]} scale={[6, 6, 1]} target={[0, 0, 0]} />
+      <Environment resolution={256} frames={1} environmentIntensity={lerp(0.85, 0.1, dusk)}>
+        {/* The room the steel reflects: a soft grey studio, bright paper below, a dark lens above. */}
+        <mesh scale={8}><sphereGeometry args={[1, 32, 16]} /><meshBasicMaterial color="#6E767C" side={THREE.BackSide} /></mesh>
+        <mesh position={[0, -0.6, 0]} rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[6, 48]} /><meshBasicMaterial color="#D2D7DA" /></mesh>
+        <mesh position={[0, 4.6, 0]} rotation={[Math.PI / 2, 0, 0]}><circleGeometry args={[0.55, 48]} /><meshBasicMaterial color="#141A20" side={THREE.DoubleSide} /></mesh>
+        <Lightformer form="rect" intensity={3.2} position={[-1.7, 2.0, -1.3]} scale={[3.0, 2.0, 1]} target={[0, 0, 0]} />
+        <Lightformer form="rect" intensity={3} position={[1.9, 0.55, 1.1]} scale={[0.12, 2.4, 1]} target={[0, 0, 0]} />
+        <Lightformer form="rect" intensity={0.35} color="#C4C9CD" position={[0, -1.2, 0]} scale={[6, 6, 1]} target={[0, 0, 0]} />
         {/* Overhead diffusion: flat steel, glass and the wafer catch it. */}
         <Lightformer form="rect" intensity={0.8} position={[0.2, 4, 0.3]} scale={[6, 5, 1]} target={[0, 0, 0]} />
       </Environment>
@@ -75,40 +79,89 @@ function Lights({ dusk, ignite }: { dusk: number; ignite: number }) {
   )
 }
 
-/** Fragments of line pulled into the point in S6. */
-function Motes({ t }: { t: number }) {
-  const N = 2600
-  const geo = useMemo(() => new THREE.BufferGeometry(), [])
-  const seeds = useMemo(() => {
+/**
+ * Dust: a few hundred motes drifting through the daylight, soft and out of
+ * focus away from the page. In S6 the same motes are pulled into the point and
+ * pick up its clay light as they arrive.
+ */
+const DUST_N = 900
+const dustVert = /* glsl */ `
+attribute float aSize;
+attribute vec3 aColor;
+uniform float uScale;
+uniform float uFocus;
+uniform float uRange;
+varying vec3 vColor;
+void main() {
+  vec4 mv = modelViewMatrix * vec4(position, 1.0);
+  gl_Position = projectionMatrix * mv;
+  float d = -mv.z;
+  float sharp = aSize * uScale / d;
+  float coc = min(36.0, abs(d - uFocus) / uRange * 3.0);
+  float px = max(1.5, sharp + coc);
+  gl_PointSize = px;
+  // The same light spread over a wider disc when out of focus.
+  vColor = aColor * clamp((sharp * sharp + 2.0) / (px * px), 0.03, 1.0);
+}
+`
+const dustFrag = /* glsl */ `
+varying vec3 vColor;
+void main() {
+  float r = length(gl_PointCoord - 0.5) * 2.0;
+  gl_FragColor = vec4(vColor * smoothstep(1.0, 0.5, r), 1.0);
+}
+`
+
+function Dust({ t, h }: { t: number; h: number }) {
+  const height = useThree(s => s.size.height)
+  const { geo, mat, seeds } = useMemo(() => {
     const r = rng(616)
-    return Array.from({ length: N }, () => {
-      const a = r() * Math.PI * 2, d = 0.03 + Math.sqrt(r()) * 0.5
-      return { x: POINT.x + Math.cos(a) * d * 1.4, z: POINT.z + Math.sin(a) * d * 0.8, delay: r() * 0.25, size: r() }
+    const seeds = Array.from({ length: DUST_N }, () => ({
+      x: -0.62 + r() * 1.24, z: -0.42 + r() * 0.84, y: 0.004 + Math.pow(r(), 1.5) * 0.14,
+      ph: r() * 100, sp: 0.5 + r() * 0.9, size: 0.0002 + Math.pow(r(), 3) * 0.001, delay: r() * 0.3, b: r(),
+    }))
+    const geo = new THREE.BufferGeometry()
+    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(DUST_N * 3), 3))
+    geo.setAttribute('aColor', new THREE.BufferAttribute(new Float32Array(DUST_N * 3), 3))
+    geo.setAttribute('aSize', new THREE.BufferAttribute(new Float32Array(seeds.map(s => s.size)), 1))
+    const mat = new THREE.ShaderMaterial({
+      uniforms: { uScale: { value: 1 }, uFocus: { value: 1 }, uRange: { value: 0.02 } },
+      vertexShader: dustVert, fragmentShader: dustFrag,
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
     })
+    return { geo, mat, seeds }
   }, [])
+  const L = light(t)
   const c = span(t, ev('converge'))
-  const pos = new Float32Array(N * 3), col = new Float32Array(N * 3)
-  const clay = new THREE.Color('#E08A68'), white = new THREE.Color('#EAF2F6')
+  const day = 1 - L.dusk
+  const H = h / TAN
+  mat.uniforms.uScale.value = height / TAN
+  mat.uniforms.uFocus.value = H
+  mat.uniforms.uRange.value = Math.max(0.012, H * 0.05)
+  const pos = geo.attributes.position as THREE.BufferAttribute, col = geo.attributes.aColor as THREE.BufferAttribute
+  const clay = [0.85, 0.47, 0.34]
   seeds.forEach((s, i) => {
-    const e = inQuart(clamp((c - s.delay) / (1 - s.delay)))
-    const sw = e * 2.2
-    const dx = s.x - POINT.x, dz = s.z - POINT.z
-    const x = POINT.x + (dx * Math.cos(sw) - dz * Math.sin(sw)) * (1 - e)
-    const z = POINT.z + (dx * Math.sin(sw) + dz * Math.cos(sw)) * (1 - e)
-    pos.set([x, 0.004 + e * 0.01, z], i * 3)
-    const k = smoother(e)
-    const cc = white.clone().lerp(clay, k)
-    const a = clamp(c * 4) * (0.35 + s.size * 0.65)
-    col.set([cc.r * a, cc.g * a, cc.b * a], i * 3)
+    // Drift: slow, mostly sideways, with a faint draft toward the window's far side.
+    let x = s.x + Math.sin(t * 0.13 * s.sp + s.ph) * 0.006 + t * 0.0012
+    let y = s.y + Math.sin(t * 0.21 * s.sp + s.ph * 1.3) * 0.004
+    let z = s.z + Math.cos(t * 0.11 * s.sp + s.ph * 0.7) * 0.005
+    let glow = 0
+    if (c > 0) {
+      const e = inQuart(clamp((c - s.delay) / (1 - s.delay)))
+      const dx = x - POINT.x, dz = z - POINT.z, sw = e * 2.4
+      x = POINT.x + (dx * Math.cos(sw) - dz * Math.sin(sw)) * (1 - e)
+      z = POINT.z + (dx * Math.sin(sw) + dz * Math.cos(sw)) * (1 - e)
+      y = lerp(y, 0.006, e)
+      const d = Math.hypot(x - POINT.x, z - POINT.z)
+      glow = (L.ignite * 1.6 + 0.08 * c) / (1 + (d / 0.035) ** 2) * (0.4 + s.b)
+    }
+    pos.setXYZ(i, x, y, z)
+    const w = day * 0.22 * (0.25 + s.b)
+    col.setXYZ(i, w * 0.86 + glow * clay[0], w * 0.92 + glow * clay[1], w * 0.98 + glow * clay[2])
   })
-  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3))
-  geo.setAttribute('color', new THREE.BufferAttribute(col, 3))
-  if (c <= 0) return null
-  return (
-    <points geometry={geo} renderOrder={5}>
-      <pointsMaterial size={0.0016} vertexColors transparent blending={THREE.AdditiveBlending} depthWrite={false} sizeAttenuation toneMapped={false} />
-    </points>
-  )
+  pos.needsUpdate = true
+  col.needsUpdate = true
+  return <points geometry={geo} material={mat} renderOrder={5} frustumCulled={false} />
 }
 
 function ClayPoint({ ignite }: { ignite: number }) {
@@ -158,10 +211,18 @@ function Post({ t, frame, h, perf = false }: { t: number; frame: number; h: numb
   const g = pipe.grade
   g.set('uCA', ca * 0.006)
   g.set('uSeed', ((frame * 0.618) % 1) * 100)
-  g.set('uExposure', lerp(1, 0.78, L.dusk))
-  g.set('uSat', lerp(0.86, 0.78, L.dusk))
-  g.set('uVignette', lerp(0.2, 0.42, L.dusk))
+  // Exposure before tone mapping: paper sits at cool paper, not at white.
+  gl.toneMappingExposure = EXPOSURE
+  g.set('uExposure', lerp(1, 0.86, L.dusk))
+  // The clay is the one warm thing: as it ignites the cool grade lets go.
+  g.set('uSat', lerp(lerp(0.86, 0.8, L.dusk), 1.0, L.ignite))
+  g.tint(lerp(0.985, 1.0, L.ignite), 1.0, lerp(1.02, 0.99, L.ignite))
+  g.set('uVignette', lerp(0.2, 0.4, L.dusk))
   g.set('uFlare', L.flare ? 0.88 : 0)
+
+  // Shadows first, before any transmission material renders its buffer, so the
+  // glass refracts a lit scene; then once per frame only.
+  useFrame(() => { gl.shadowMap.needsUpdate = true }, -1)
 
   useFrame((_, dt) => {
     const a = performance.now()
@@ -172,7 +233,6 @@ function Post({ t, frame, h, perf = false }: { t: number; frame: number; h: numb
       ctx.readPixels(0, 0, 1, 1, ctx.RGBA, ctx.UNSIGNED_BYTE, px)
     }
     const b = performance.now()
-    gl.shadowMap.needsUpdate = true
     pipe.composer.render(dt)
     if (perf) {
       const ctx = gl.getContext() as WebGL2RenderingContext
@@ -262,7 +322,7 @@ export function World({ t, frame, post = true, perf = false }: { t: number; fram
       {(() => { const p = converge(t, PROPS.logbook, 5); return <Logbook x={p.x} z={p.z} rot={p.rot} scale={p.scale} /> })()}
       {(() => { const p = converge(t, PROPS.ruler, 6); return <Ruler x={p.x} z={p.z} rot={p.rot} scale={p.scale} /> })()}
 
-      <Motes t={t} />
+      <Dust t={t} h={cam.h} />
       <ClayPoint ignite={L.ignite} />
       {post && <Post t={t} frame={frame} h={cam.h} perf={perf} />}
     </>

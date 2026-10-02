@@ -1,6 +1,6 @@
 import { canvas, ctx2d, cached, copyInto } from './canvas'
 import { paperBase } from './paper'
-import { fbm, rng } from '../lib/rand'
+import { fbm } from '../lib/rand'
 
 // Surfaces for the table and the props.
 
@@ -8,31 +8,29 @@ export const TABLE_MM = { w: 1600, h: 1000 }
 
 /** A matte grey-green work surface, faintly mottled. */
 export function tableTexture() {
-  return paperBase('table', TABLE_MM.w, TABLE_MM.h, { base: '#A3AFAA', mottle: 0.5, fibers: 0.004, grain: 4, ppmm: 2.4 }, 19)
+  return paperBase('table', TABLE_MM.w, TABLE_MM.h, { base: '#A3AAAE', mottle: 0.22, fibers: 0.004, grain: 4, ppmm: 2.4 }, 19)
 }
 
-/** 1nm-class wafer: a die grid with scribe lanes and dense array blocks. */
+/** 1nm-class wafer: a die grid with fine scribe lanes; the dies are mirror-dark
+ *  with only a faint texture of arrays, so the iridescence does the talking. */
 export function waferTexture() {
   return cached('wafer', () => {
     const S = 2048, mm = 130, P = S / mm
     const c = canvas(S, S), g = ctx2d(c)
-    g.fillStyle = '#B4BEC6'
+    g.fillStyle = '#8F9AA3'
     g.fillRect(0, 0, S, S)
-    const dw = 11.2, dh = 13.4, lane = 0.22
-    const r = rng(1)
+    const dw = 8.4, dh = 10.2, lane = 0.22
     for (let y = -dh; y < mm + dh; y += dh) for (let x = -dw; x < mm + dw; x += dw) {
       const X = x * P, Y = y * P
-      g.fillStyle = '#98A3AC'
-      g.fillRect(X, Y, dw * P, dh * P)
-      // Array blocks inside the die.
-      for (let by = 0; by < 4; by++) for (let bx = 0; bx < 3; bx++) {
-        const v = 150 + Math.round(r() * 30)
-        g.fillStyle = `rgb(${v},${v + 8},${v + 16})`
-        g.fillRect(X + (0.8 + bx * 3.4) * P, Y + (0.9 + by * 3.1) * P, 2.9 * P, 2.5 * P)
+      // Array banks: dense rows a shade off the die's own tone.
+      g.fillStyle = '#96A1AA'
+      for (let k = 0; k < 2; k++) {
+        const bx = X + (0.7 + k * 3.7) * P, by = Y + 0.8 * P, bw = 3.2 * P, bh = 5.2 * P
+        for (let r = 0; r < bh; r += 0.16 * P) g.fillRect(bx, by + r, bw, 0.07 * P)
       }
-      g.fillStyle = '#A8B2BA'
-      g.fillRect(X + 0.8 * P, Y + (dh - 1.0) * P, (dw - 1.6) * P, 0.25 * P)
-      g.fillStyle = '#C9D2D8'
+      g.fillStyle = '#8A959E'
+      g.fillRect(X + 0.7 * P, Y + 6.6 * P, 6.9 * P, 2.8 * P)
+      g.fillStyle = '#B3BDC4'
       g.fillRect(X, Y, dw * P, lane * P)
       g.fillRect(X, Y, lane * P, dh * P)
     }

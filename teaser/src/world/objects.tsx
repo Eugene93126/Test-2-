@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import * as THREE from 'three'
 import { MeshTransmissionMaterial, RoundedBox } from '@react-three/drei'
-import type { GripPose } from './choreo'
+import { GLASS_R, type GripPose } from './choreo'
 import { canvas, ctx2d, cached } from '../art/canvas'
 import { grainTile } from '../art/paper'
 import { logbookCover, tableTexture, TABLE_MM, waferTexture } from '../art/props'
@@ -10,8 +10,9 @@ import { softRect, textureFor } from './Paper'
 /* ---------- Materials ---------- */
 
 export const MAT = {
-  shell: new THREE.MeshPhysicalMaterial({ color: '#E6E9EA', roughness: 0.42, clearcoat: 0.45, clearcoatRoughness: 0.32 }),
-  graphite: new THREE.MeshStandardMaterial({ color: '#2B3137', roughness: 0.34, metalness: 0.55 }),
+  // Anodised silver: the robots read as instruments, not toys.
+  shell: new THREE.MeshPhysicalMaterial({ color: '#BDC6CB', metalness: 0.62, roughness: 0.34, clearcoat: 0.25, clearcoatRoughness: 0.3 }),
+  graphite: new THREE.MeshStandardMaterial({ color: '#363E45', roughness: 0.36, metalness: 0.55 }),
   silicone: new THREE.MeshStandardMaterial({ color: '#1B2025', roughness: 0.82 }),
   steel: new THREE.MeshPhysicalMaterial({ color: '#D3DADF', metalness: 1, roughness: 0.055, envMapIntensity: 1.25 }),
   brushed: new THREE.MeshPhysicalMaterial({ color: '#C6CDD2', metalness: 1, roughness: 0.3 }),
@@ -77,30 +78,70 @@ export function Sphere({ x, y, z, r, roll, ux, uz, scale }: { x: number; y: numb
   )
 }
 
-/* ---------- Glass block (S4) ---------- */
+/* ---------- Glass (S4): a thick optical disc, very slightly convex ---------- */
+
+const GLASS_H = 0.03
+
+function glassGeometry() {
+  // Lathe profile from the axis outwards over the top, down the side, back under.
+  const R = GLASS_R, H = GLASS_H, sag = 0.0045, c = 0.0028
+  const pts: THREE.Vector2[] = []
+  const N = 28
+  for (let i = 0; i <= N; i++) {
+    const r = (R - c) * (i / N)
+    pts.push(new THREE.Vector2(r, H - sag * (r / (R - c)) ** 2))
+  }
+  pts.push(new THREE.Vector2(R - c * 0.35, H - sag - c * 0.65))
+  pts.push(new THREE.Vector2(R, H - sag - c))
+  pts.push(new THREE.Vector2(R, c))
+  pts.push(new THREE.Vector2(R - c * 0.35, c * 0.35))
+  pts.push(new THREE.Vector2(R - c, 0))
+  pts.push(new THREE.Vector2(0, 0))
+  // Lathe sweeps the profile around y; reverse so faces point outward.
+  return new THREE.LatheGeometry(pts.reverse(), 128)
+}
 
 function causticTex() {
-  return cached('caustic', () => {
-    const W = 512, H = 512, c = canvas(W, H), g = ctx2d(c)
-    g.filter = 'blur(10px)'
-    g.fillStyle = 'rgba(255,255,255,0.9)'
-    g.fillRect(W * 0.86, H * 0.08, W * 0.06, H * 0.84)
-    g.fillStyle = 'rgba(255,255,255,0.35)'
-    g.fillRect(W * 0.12, H * 0.9, W * 0.76, H * 0.05)
+  return cached('caustic-disc', () => {
+    const S = 512, c = canvas(S, S), g = ctx2d(c)
+    // The disc gathers light into a soft bright pool, brightest near the rim.
+    const grd = g.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2)
+    grd.addColorStop(0, 'rgba(255,255,255,0.35)')
+    grd.addColorStop(0.62, 'rgba(255,255,255,0.55)')
+    grd.addColorStop(0.8, 'rgba(255,255,255,0.95)')
+    grd.addColorStop(0.9, 'rgba(255,255,255,0.15)')
+    grd.addColorStop(1, 'rgba(255,255,255,0)')
+    g.filter = 'blur(6px)'
+    g.fillStyle = grd
+    g.fillRect(0, 0, S, S)
+    return c
+  })
+}
+
+function roundShadow() {
+  return cached('round-shadow', () => {
+    const S = 256, c = canvas(S, S), g = ctx2d(c)
+    const grd = g.createRadialGradient(S / 2, S / 2, S * 0.3, S / 2, S / 2, S / 2)
+    grd.addColorStop(0, 'rgba(0,0,0,0.0)')
+    grd.addColorStop(0.75, 'rgba(0,0,0,0.9)')
+    grd.addColorStop(1, 'rgba(0,0,0,0)')
+    g.fillStyle = grd
+    g.fillRect(0, 0, S, S)
     return c
   })
 }
 
 export function GlassBlock({ x, z, rot }: { x: number; z: number; rot: number }) {
-  const W = 0.12, H = 0.034, D = 0.22
+  const geo = useMemo(glassGeometry, [])
+  const R = GLASS_R
   return (
     <group position={[x, 0, z]} rotation={[0, rot, 0]}>
-      <Decal x={0.006} z={0.008} w={W * 1.25} h={D * 1.1} opacity={0.2} tex={softRect(W / D, 0.06)} />
-      <Decal x={0.012} z={0.01} w={W * 1.1} h={D} opacity={0.6} tex={causticTex()} additive />
-      <RoundedBox args={[W, H, D]} radius={0.006} smoothness={6} position={[0, H / 2 + 0.0004, 0]}>
-        <MeshTransmissionMaterial transmission={1} thickness={H} roughness={0.02} ior={1.52} chromaticAberration={0.09} anisotropicBlur={0.05}
-          distortion={0} samples={8} resolution={1024} backside backsideThickness={0.02} color="#F1F7F7" attenuationColor="#A6CFCB" attenuationDistance={0.09} envMapIntensity={1.1} />
-      </RoundedBox>
+      <Decal x={0.004} z={0.005} w={R * 2.3} h={R * 2.3} opacity={0.32} tex={roundShadow()} />
+      <Decal x={0.014} z={0.017} w={R * 1.9} h={R * 1.9} opacity={0.38} tex={causticTex()} additive />
+      <mesh geometry={geo} position={[0, 0.0004, 0]}>
+        <MeshTransmissionMaterial transmission={1} thickness={GLASS_H} roughness={0.015} ior={1.52} chromaticAberration={0.06} anisotropicBlur={0.02}
+          distortion={0} samples={8} resolution={1024} backside backsideThickness={GLASS_H} color="#FBFDFC" attenuationColor="#D4E8E1" attenuationDistance={0.35} envMapIntensity={1} />
+      </mesh>
     </group>
   )
 }
@@ -134,25 +175,22 @@ export function PromptCard({ x, y, z, rot, tilt, screen, version }: { x: number;
 export function Gripper({ p }: { p: GripPose }) {
   if (!p.visible) return null
   const o = p.open / 2
-  // A slim two-finger hand: ivory shell, graphite joints, silicone tips.
+  // A slim two-finger hand: silver palm and forearm, graphite fingers, silicone pads.
   return (
-    <group position={[p.x, p.y, p.z]} rotation={[0, p.yaw, 0]} scale={0.88}>
+    <group position={[p.x, p.y, p.z]} rotation={[0, p.yaw, 0]} scale={0.8}>
       <group rotation={[0, 0, -p.pitch]}>
         {[-1, 1].map(s => (
           <group key={s} position={[0, 0.006, s * (o + 0.0046)]}>
-            <RoundedBox args={[0.034, 0.0105, 0.0088]} radius={0.0038} smoothness={4} position={[-0.019, 0, 0]} castShadow material={MAT.shell} />
-            <RoundedBox args={[0.0105, 0.0112, 0.0092]} radius={0.0036} smoothness={4} position={[-0.0048, 0, 0]} castShadow material={MAT.silicone} />
-            <RoundedBox args={[0.022, 0.0118, 0.0094]} radius={0.002} smoothness={3} position={[-0.046, 0.0008, 0]} castShadow material={MAT.graphite} />
+            <RoundedBox args={[0.046, 0.0102, 0.0084]} radius={0.0034} smoothness={4} position={[-0.027, 0, 0]} castShadow material={MAT.graphite} />
+            <RoundedBox args={[0.012, 0.011, 0.0092]} radius={0.0036} smoothness={4} position={[-0.005, 0, 0]} castShadow material={MAT.silicone} />
           </group>
         ))}
-        <RoundedBox args={[0.016, 0.014, 0.046]} radius={0.004} smoothness={3} position={[-0.062, 0.009, 0]} castShadow material={MAT.graphite} />
-        <RoundedBox args={[0.058, 0.04, 0.056]} radius={0.017} smoothness={6} position={[-0.096, 0.016, 0]} castShadow material={MAT.shell} />
-        <mesh position={[-0.096, 0.0362, 0]} rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[0.006, 40]} /><meshStandardMaterial color="#AEB8BF" roughness={0.35} metalness={0.4} /></mesh>
-        <mesh position={[-0.128, 0.016, 0]} rotation={[0, 0, Math.PI / 2]} material={MAT.graphite}><cylinderGeometry args={[0.0215, 0.0215, 0.007, 48]} /></mesh>
-        <mesh position={[-0.152, 0.016, 0]} rotation={[0, 0, Math.PI / 2]} castShadow material={MAT.shell}><cylinderGeometry args={[0.02, 0.0205, 0.042, 48]} /></mesh>
-        <mesh position={[-0.181, 0.016, 0]} rotation={[Math.PI / 2, 0, 0]} castShadow material={MAT.graphite}><cylinderGeometry args={[0.0235, 0.0235, 0.036, 48]} /></mesh>
-        <mesh position={[-0.46, 0.016, 0]} rotation={[0, 0, Math.PI / 2]} castShadow material={MAT.shell}><cylinderGeometry args={[0.0185, 0.0185, 0.52, 48]} /></mesh>
-        <mesh position={[-0.27, 0.016, 0]} rotation={[0, 0, Math.PI / 2]} material={MAT.graphite}><cylinderGeometry args={[0.0192, 0.0192, 0.004, 48]} /></mesh>
+        <RoundedBox args={[0.014, 0.012, 0.05]} radius={0.004} smoothness={3} position={[-0.055, 0.008, 0]} castShadow material={MAT.graphite} />
+        <RoundedBox args={[0.056, 0.034, 0.054]} radius={0.012} smoothness={6} position={[-0.088, 0.014, 0]} castShadow material={MAT.shell} />
+        <mesh position={[-0.119, 0.015, 0]} rotation={[0, 0, Math.PI / 2]} material={MAT.graphite}><cylinderGeometry args={[0.0205, 0.0205, 0.005, 48]} /></mesh>
+        <mesh position={[-0.142, 0.015, 0]} rotation={[0, 0, Math.PI / 2]} castShadow material={MAT.shell}><cylinderGeometry args={[0.02, 0.0195, 0.04, 48]} /></mesh>
+        <mesh position={[-0.1645, 0.015, 0]} rotation={[0, 0, Math.PI / 2]} material={MAT.graphite}><cylinderGeometry args={[0.0212, 0.0212, 0.0045, 48]} /></mesh>
+        <mesh position={[-0.442, 0.015, 0]} rotation={[0, 0, Math.PI / 2]} castShadow material={MAT.shell}><cylinderGeometry args={[0.0212, 0.0188, 0.55, 48]} /></mesh>
       </group>
     </group>
   )
@@ -174,42 +212,104 @@ export function Pen({ x, y, z }: { x: number; y: number; z: number }) {
   )
 }
 
-/* ---------- A person's gloved fingers (S4) ---------- */
+/* ---------- A person's gloved hand (S4) ---------- */
 
-const cotton = (() => {
-  const m = new THREE.MeshPhysicalMaterial({ color: '#E8ECEC', roughness: 1, sheen: 1, sheenColor: new THREE.Color('#ffffff'), sheenRoughness: 0.7 })
-  return m
-})()
+/** A tube along a smooth path whose radius follows a profile; the tip closes round. */
+function taperTube(path: [number, number, number][], radius: (s: number) => number, flat = 0.86) {
+  const curve = new THREE.CatmullRomCurve3(path.map(p => new THREE.Vector3(...p)), false, 'centripetal')
+  const T = 56, R = 20
+  const frames = curve.computeFrenetFrames(T, false)
+  const len = curve.getLength()
+  const pos: number[] = [], nor: number[] = [], uv: number[] = [], idx: number[] = []
+  const e = 1 / T
+  for (let i = 0; i <= T; i++) {
+    const s = i / T
+    const P = curve.getPointAt(s), tan = curve.getTangentAt(s)
+    const N = frames.normals[i], B = frames.binormals[i]
+    const r = radius(s)
+    const slope = (radius(Math.min(1, s + e)) - radius(Math.max(0, s - e))) / (2 * e * len)
+    for (let j = 0; j <= R; j++) {
+      const v = (j / R) * Math.PI * 2
+      // Fingers are a little flatter than they are wide.
+      const d = new THREE.Vector3().addScaledVector(N, Math.cos(v) * flat).addScaledVector(B, Math.sin(v))
+      pos.push(P.x + d.x * r, P.y + d.y * r, P.z + d.z * r)
+      const n = new THREE.Vector3().addScaledVector(N, Math.cos(v) / flat).addScaledVector(B, Math.sin(v)).normalize()
+      n.addScaledVector(tan, -Math.max(-6, Math.min(6, slope))).normalize()
+      nor.push(n.x, n.y, n.z)
+      uv.push(s * 3, j / R)
+    }
+  }
+  for (let i = 0; i < T; i++) for (let j = 0; j < R; j++) {
+    const a = i * (R + 1) + j, b = (i + 1) * (R + 1) + j
+    idx.push(a, b, a + 1, b, b + 1, a + 1)
+  }
+  const g = new THREE.BufferGeometry()
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3))
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2))
+  g.setIndex(idx)
+  return g
+}
+
+/** Radius profile: r0 at the knuckle easing to r1, then a rounded tip of length r1. */
+const fingerProfile = (r0: number, r1: number, L: number) => (s: number) => {
+  const tip = 1 - r1 / L
+  if (s <= tip) return lerpN(r0, r1, s / tip)
+  const k = (s - tip) / (1 - tip)
+  return r1 * Math.sqrt(Math.max(0, 1 - k * k)) + 0.0002
+}
+const lerpN = (a: number, b: number, k: number) => a + (b - a) * k
+
+function knitTexture() {
+  return cached('knit', () => {
+    // Fine jersey knit: rows of small V loops.
+    const S = 256, c = canvas(S, S), g = ctx2d(c)
+    g.fillStyle = '#808080'
+    g.fillRect(0, 0, S, S)
+    const n = 32, w = S / n
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+      const X = x * w, Y = y * w
+      const grd = g.createLinearGradient(X, Y, X + w, Y)
+      grd.addColorStop(0, '#5A5A5A'); grd.addColorStop(0.5, '#B4B4B4'); grd.addColorStop(1, '#5A5A5A')
+      g.fillStyle = grd
+      g.beginPath(); g.moveTo(X, Y); g.lineTo(X + w / 2, Y + w); g.lineTo(X + w, Y); g.lineTo(X + w / 2, Y + w * 0.45); g.closePath(); g.fill()
+    }
+    return c
+  })
+}
+
+const cotton = new THREE.MeshPhysicalMaterial({ color: '#D3D7D4', roughness: 0.96, sheen: 0.8, sheenColor: new THREE.Color('#F2F4F2'), sheenRoughness: 0.75 })
+const sleeve = new THREE.MeshPhysicalMaterial({ color: '#2A3138', roughness: 0.94, sheen: 0.6, sheenColor: new THREE.Color('#6E7A84'), sheenRoughness: 0.6 })
 
 export function Glove({ x, y, z, rot }: { x: number; y: number; z: number; rot: number }) {
-  const knit = useMemo(() => {
-    const t = new THREE.CanvasTexture(grainTile('knit', 256, 9, 3))
-    t.wrapS = t.wrapT = THREE.RepeatWrapping
-    t.repeat.set(10, 10)
-    return t
+  const parts = useMemo(() => {
+    const knit = new THREE.CanvasTexture(knitTexture())
+    knit.wrapS = knit.wrapT = THREE.RepeatWrapping
+    knit.repeat.set(1, 6)
+    cotton.bumpMap = knit
+    cotton.bumpScale = 0.00025
+    // Right hand, palm down: index and middle pressing the page, ring and
+    // little finger relaxed, thumb tucked under the side of the hand.
+    const F = (path: [number, number, number][], r0: number, r1: number) => {
+      const L = path.slice(1).reduce((a, p, i) => a + Math.hypot(p[0] - path[i][0], p[1] - path[i][1], p[2] - path[i][2]), 0)
+      return taperTube(path, fingerProfile(r0, r1, L))
+    }
+    return [
+      F([[-0.004, 0.024, -0.024], [0.03, 0.022, -0.026], [0.058, 0.0135, -0.028], [0.079, 0.0088, -0.029]], 0.0094, 0.0079),
+      F([[-0.002, 0.025, -0.004], [0.036, 0.0235, -0.004], [0.066, 0.0145, -0.004], [0.088, 0.009, -0.0035]], 0.0097, 0.0081),
+      F([[-0.006, 0.024, 0.0155], [0.026, 0.0235, 0.017], [0.046, 0.0165, 0.018], [0.054, 0.0092, 0.0175]], 0.0092, 0.0078),
+      F([[-0.016, 0.022, 0.031], [0.008, 0.0215, 0.034], [0.024, 0.0145, 0.035], [0.029, 0.0082, 0.034]], 0.008, 0.0068),
+      F([[-0.05, 0.017, -0.026], [-0.026, 0.0125, -0.042], [-0.002, 0.0096, -0.049], [0.014, 0.0088, -0.049]], 0.0118, 0.0092),
+    ]
   }, [])
-  cotton.bumpMap = knit
-  cotton.bumpScale = 0.0004
-  const finger = (zz: number, len: number, key: string) => {
-    const segs = [[0.03 * len, 0.0089, 0.0118, -0.03], [0.022 * len, 0.0083, 0.0098, 0.0], [0.016 * len, 0.0078, 0.0082, 0.021 * len]]
-    return (
-      <group key={key} position={[0, 0, zz]}>
-        {segs.map(([L, r, yy, xx], i) => (
-          <mesh key={i} position={[xx, yy, 0]} rotation={[0, 0, Math.PI / 2 + (i === 0 ? 0.18 : i === 1 ? -0.05 : -0.12)]} castShadow material={cotton}>
-            <capsuleGeometry args={[r, L, 8, 24]} />
-          </mesh>
-        ))}
-      </group>
-    )
-  }
   return (
     <group position={[x, y, z]} rotation={[0, rot, 0]}>
-      <Decal x={0.004} z={0.006} y={0.0011} w={0.15} h={0.06} opacity={0.35} tex={softRect(2.5, 0.08)} />
-      {finger(-0.0105, 1, 'i')}
-      {finger(0.0095, 1.06, 'm')}
-      {finger(0.028, 0.88, 'r')}
-      <RoundedBox args={[0.08, 0.03, 0.082]} radius={0.014} smoothness={5} position={[-0.085, 0.02, 0.008]} rotation={[0, 0, 0.22]} castShadow material={cotton} />
-      <mesh position={[-0.14, 0.032, 0.008]} rotation={[0, 0, Math.PI / 2 + 0.22]} material={MAT.graphite}><cylinderGeometry args={[0.03, 0.03, 0.03, 32]} /></mesh>
+      <Decal x={0.006} z={0.006} y={0.0011} w={0.2} h={0.1} opacity={0.3} tex={softRect(2, 0.1)} />
+      {parts.map((g, i) => <mesh key={i} geometry={g} castShadow material={cotton} />)}
+      {/* Back of the hand, the wrist, a knit cuff and the sleeve. */}
+      <mesh position={[-0.038, 0.0215, 0.003]} rotation={[0, 0, -0.1]} scale={[0.05, 0.0145, 0.038]} castShadow material={cotton}><sphereGeometry args={[1, 48, 32]} /></mesh>
+      <mesh position={[-0.095, 0.026, 0.002]} rotation={[0, 0, Math.PI / 2 - 0.1]} scale={[1, 1, 0.78]} castShadow material={cotton}><cylinderGeometry args={[0.029, 0.031, 0.05, 40]} /></mesh>
+      <mesh position={[-0.2, 0.034, 0.002]} rotation={[0, 0, Math.PI / 2 - 0.08]} scale={[1, 1, 0.82]} castShadow material={sleeve}><cylinderGeometry args={[0.041, 0.043, 0.17, 40]} /></mesh>
     </group>
   )
 }
@@ -244,8 +344,8 @@ export function Wafer({ x, z, rot, scale = 1 }: { x: number; z: number; rot: num
     return g
   }, [])
   const mat = useMemo(() => new THREE.MeshPhysicalMaterial({
-    map: textureFor(waferTexture()), metalness: 0.88, roughness: 0.14, iridescence: 0.65, iridescenceIOR: 1.45,
-    iridescenceThicknessRange: [300, 430], envMapIntensity: 1.1,
+    map: textureFor(waferTexture()), metalness: 0.9, roughness: 0.1, iridescence: 0.5, iridescenceIOR: 1.45,
+    iridescenceThicknessRange: [120, 331], envMapIntensity: 1.1,
   }), [])
   return (
     <group position={[x, 0, z]} rotation={[0, rot, 0]} scale={scale}>

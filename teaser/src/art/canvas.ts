@@ -9,8 +9,13 @@ export function canvas(w: number, h: number) {
   return c
 }
 
+/**
+ * Canvas contexts stay on the CPU: without a GPU, an "accelerated" canvas is
+ * rasterised by SwiftShader one draw call at a time, which is many times
+ * slower than Skia on the CPU for thousands of small strokes.
+ */
 export function ctx2d(c: HTMLCanvasElement) {
-  return c.getContext('2d', { willReadFrequently: false })!
+  return c.getContext('2d', { willReadFrequently: true })!
 }
 
 /** Copy a canvas (the static base) so a frame can draw on top of it. */

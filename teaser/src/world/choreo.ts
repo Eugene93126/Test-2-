@@ -105,7 +105,8 @@ export function gripperA(t: number): GripPose {
   if (t > 8.75 && t < 10.75) {
     const g = glassPose(t)
     const inn = outQuart(prog(t, 8.75, 9.0))
-    return { x: g.x - 0.062 - (1 - inn) * 0.2, y: 0.02 + (1 - inn) * 0.05, z: g.z + 0.02, yaw: 0, pitch: deg(18), open: 0.03, visible: true }
+    // Both fingertips on the disc's rim, pushing it through the frame.
+    return { x: g.x - GLASS_R * 0.98 - 0.0012 - (1 - inn) * 0.2, y: 0.02 + (1 - inn) * 0.05, z: g.z, yaw: 0, pitch: deg(18), open: 0.03, visible: true }
   }
   return hidden
 }
@@ -152,6 +153,9 @@ export function spherePose(t: number, i: number) {
 
 /* ---------- S4: glass block ---------- */
 
+/** The optical disc's radius (S4). */
+export const GLASS_R = 0.078
+
 export function glassPose(t: number) {
   const g = span(t, ev('glassSlide'))
   const e = inOutCubic(g)
@@ -177,7 +181,8 @@ export function glovePose(t: number) {
 
 /* ---------- S5: cards ---------- */
 
-const CARD_JITTER = (() => { const r = rng(12); return FLASHES.map(() => ({ dx: (r() - 0.5) * 0.012, dz: (r() - 0.5) * 0.01, rot: (r() - 0.5) * deg(9), from: r() * Math.PI * 2 })) })()
+// Small jitter: a neat stack, edges just showing, the cards below never readable.
+const CARD_JITTER = (() => { const r = rng(12); return FLASHES.map(() => ({ dx: (r() - 0.5) * 0.005, dz: (r() - 0.5) * 0.004, rot: (r() - 0.5) * deg(4.4), from: r() * Math.PI * 2 })) })()
 
 export function cardStackPose(t: number, i: number): (Pose & { visible: boolean }) {
   const f = FLASHES[i]

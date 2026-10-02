@@ -116,7 +116,8 @@ export const ELLIPSE = (() => {
   const tilt = -0.07
   const pts: { x: number; y: number; w: number }[] = []
   const n = 220
-  const a0 = Math.PI * 1.08, sweep = Math.PI * 2 * 1.13
+  // Starts and ends on the right of the word, so the pen lifts away without hiding it.
+  const a0 = Math.PI * 0.08, sweep = Math.PI * 2 * 1.13
   for (let i = 0; i <= n; i++) {
     const t = i / n
     const a = a0 - sweep * t
@@ -137,30 +138,43 @@ export function ellipseTip(p: number) {
   return ELLIPSE[i]
 }
 
+/** The ellipse's own little canvas, so the bleed is blurred once, not per stroke. */
+const ELLIPSE_BOX = (() => {
+  const xs = ELLIPSE.map(p => p.x), ys = ELLIPSE.map(p => p.y)
+  const pad = 4
+  return { x: Math.min(...xs) - pad, y: Math.min(...ys) - pad, w: Math.max(...xs) - Math.min(...xs) + pad * 2, h: Math.max(...ys) - Math.min(...ys) + pad * 2 }
+})()
+let ellipseCanvas: HTMLCanvasElement | null = null
+
 function drawEllipse(g: CanvasRenderingContext2D, prog: number, bleed: number) {
   const p = REPORT_PPMM
   const n = Math.floor(prog * (ELLIPSE.length - 1))
   if (n < 1) return
-  g.lineCap = 'round'
-  g.lineJoin = 'round'
+  const B = ELLIPSE_BOX
+  if (!ellipseCanvas) ellipseCanvas = canvas(B.w * p, B.h * p)
+  const e = ctx2d(ellipseCanvas)
+  e.clearRect(0, 0, ellipseCanvas.width, ellipseCanvas.height)
+  e.lineCap = 'round'
+  e.lineJoin = 'round'
+  e.strokeStyle = PEN
+  const stroke = (extra: number) => {
+    for (let i = 1; i <= n; i++) {
+      const a = ELLIPSE[i - 1], b = ELLIPSE[i]
+      e.lineWidth = (b.w + extra) * p
+      e.beginPath(); e.moveTo((a.x - B.x) * p, (a.y - B.y) * p); e.lineTo((b.x - B.x) * p, (b.y - B.y) * p); e.stroke()
+    }
+  }
   // Bleed: ink wicking into the fibres, a soft halo that grows a little.
+  stroke(0.25)
   g.save()
   g.filter = `blur(${(0.18 + bleed * 0.25) * p}px)`
-  g.strokeStyle = PEN
   g.globalAlpha = 0.28 + bleed * 0.12
-  for (let i = 1; i <= n; i++) {
-    const a = ELLIPSE[i - 1], b = ELLIPSE[i]
-    g.lineWidth = (b.w + 0.25) * p
-    g.beginPath(); g.moveTo(a.x * p, a.y * p); g.lineTo(b.x * p, b.y * p); g.stroke()
-  }
+  g.drawImage(ellipseCanvas, B.x * p, B.y * p)
   g.restore()
-  g.strokeStyle = PEN
+  e.clearRect(0, 0, ellipseCanvas.width, ellipseCanvas.height)
+  stroke(0)
   g.globalAlpha = 0.9
-  for (let i = 1; i <= n; i++) {
-    const a = ELLIPSE[i - 1], b = ELLIPSE[i]
-    g.lineWidth = b.w * p
-    g.beginPath(); g.moveTo(a.x * p, a.y * p); g.lineTo(b.x * p, b.y * p); g.stroke()
-  }
+  g.drawImage(ellipseCanvas, B.x * p, B.y * p)
   g.globalAlpha = 1
 }
 

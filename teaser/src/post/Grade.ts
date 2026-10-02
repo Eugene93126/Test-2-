@@ -1,7 +1,7 @@
 import { BlendFunction, Effect, EffectAttribute } from 'postprocessing'
 import { Uniform, Vector3 } from 'three'
 
-// The film's look in one pass: cool grade with lifted blacks, a lens-shaped
+// The film's look in one pass: cool grade with blacks lifted to the palette's ink, a lens-shaped
 // vignette, chromatic aberration only when asked (transitions), grain, and the
 // one-frame flare before the blackout.
 
@@ -28,18 +28,21 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
     c.b = texture2D(inputBuffer, uv - o).b;
   }
   c *= uExposure;
+  // Grade in display space, where lift, contrast and grain behave like film.
+  c = pow(max(c, vec3(0.0)), vec3(1.0 / 2.2));
   float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
   c = mix(vec3(l), c, uSat);
-  c = (c - 0.5) * uContrast + 0.5;
+  c = (c - 0.45) * uContrast + 0.45;
   c *= uTint;
   c = uLift + c * (1.0 - uLift);
   float v = smoothstep(0.95, 0.25, length(d * vec2(1.0, 0.82)));
   c *= mix(1.0 - uVignette, 1.0, v);
   float n = hash(uv * vec2(1931.0, 1087.0) + uSeed) - 0.5;
   n += (hash(uv * vec2(977.0, 541.0) + uSeed * 1.7) - 0.5) * 0.5;
-  c += n * uGrain * (0.55 + 0.45 * (1.0 - clamp(l, 0.0, 1.0)));
-  c = mix(c, vec3(1.0, 0.78, 0.66), uFlare);
-  outputColor = vec4(max(c, vec3(0.0)), inputColor.a);
+  c += n * uGrain * (0.6 + 0.4 * (1.0 - clamp(l, 0.0, 1.0)));
+  c = mix(c, vec3(1.0, 0.8, 0.68), uFlare);
+  c = pow(max(c, vec3(0.0)), vec3(2.2));
+  outputColor = vec4(c, inputColor.a);
 }
 `
 
@@ -50,17 +53,18 @@ export class GradeEffect extends Effect {
       attributes: EffectAttribute.CONVOLUTION,
       uniforms: new Map<string, Uniform>([
         ['uSeed', new Uniform(0)],
-        ['uGrain', new Uniform(0.035)],
+        ['uGrain', new Uniform(0.03)],
         ['uVignette', new Uniform(0.22)],
         ['uCA', new Uniform(0)],
         ['uExposure', new Uniform(1)],
         ['uSat', new Uniform(0.86)],
-        ['uContrast', new Uniform(1.1)],
+        ['uContrast', new Uniform(1.06)],
         ['uFlare', new Uniform(0)],
-        ['uLift', new Uniform(new Vector3(0.026, 0.034, 0.045))],
+        ['uLift', new Uniform(new Vector3(0.043, 0.055, 0.071))],
         ['uTint', new Uniform(new Vector3(0.97, 1.0, 1.03))],
       ]),
     })
   }
   set(name: string, v: number) { this.uniforms.get(name)!.value = v }
+  tint(r: number, g: number, b: number) { (this.uniforms.get('uTint')!.value as Vector3).set(r, g, b) }
 }
