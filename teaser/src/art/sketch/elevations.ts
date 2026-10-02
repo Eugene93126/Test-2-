@@ -20,8 +20,9 @@ export const S3_STYLE: Style = {
   // A photogram's body is lighter than the open sky around it: forms read solid.
   fill: 'rgba(40, 88, 134, 0.7)',
   k: 0.78,
-  gap: 2.4,
-  build01: 0.7,
+  gap: 2.1,
+  build01: 0,
+  engrave: true,
 }
 const LIGHT: V3 = norm([-0.55, 0.75, 0.4])
 

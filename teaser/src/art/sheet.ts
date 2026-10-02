@@ -52,9 +52,10 @@ export function cyanBase() {
       const cloud = fbm(x / 26, y / 26, 23, 4)
       const v = 0.18 * streak + 0.82 * cloud
       const k = (y * sw + x) * 4
-      img.data[k] = 16 + v * 26
-      img.data[k + 1] = 50 + v * 40
-      img.data[k + 2] = 84 + v * 52
+      // Ultramarine, the lapis blue of the Flemish panels: deeper and a touch violet.
+      img.data[k] = 20 + v * 30
+      img.data[k + 1] = 36 + v * 34
+      img.data[k + 2] = 104 + v * 62
       img.data[k + 3] = 255
     }
     sg.putImageData(img, 0, 0)
@@ -66,6 +67,19 @@ export function cyanBase() {
     g.globalCompositeOperation = 'multiply'
     g.drawImage(col, 0, 0)
     g.globalCompositeOperation = 'source-over'
+    // Lapis is a ground stone: the pigment sits in visible granules, a few
+    // bright crystals and darker clumps, only where the colour took.
+    const grains = canvas(W, H), gg = ctx2d(grains)
+    const gr = rng(91)
+    for (let i = 0; i < W * H * 0.012; i++) {
+      const x = gr() * W, y = gr() * H, r = 0.35 + gr() ** 3 * 1.4
+      const bright = gr() < 0.35
+      gg.fillStyle = bright ? `rgba(120, 150, 230, ${0.25 + gr() * 0.35})` : `rgba(8, 14, 52, ${0.2 + gr() * 0.3})`
+      gg.beginPath(); gg.arc(x, y, r, 0, Math.PI * 2); gg.fill()
+    }
+    gg.globalCompositeOperation = 'destination-in'
+    gg.drawImage(m, 0, 0)
+    g.drawImage(grains, 0, 0)
     return c
   })
 }

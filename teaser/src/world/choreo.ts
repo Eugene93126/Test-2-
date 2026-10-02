@@ -217,6 +217,21 @@ export function light(t: number) {
   return { dusk: d, ignite: ign * ign, flare: t >= ev('flare')[0] && t < ev('flare')[1] ? 1 : 0 }
 }
 
+/**
+ * How much of the Northern Renaissance panel the grade lays over the frame:
+ * the archive and the seal (the human, the document), and S6's candlelit
+ * still life. The machine scenes stay cool.
+ */
+export function paint(t: number) {
+  const [, a1, a2] = ev('paintArchive')
+  const [b0, b1, b2] = ev('paintSeal')
+  const [c0, c1, cMax] = ev('paintStillLife')
+  if (t < a2) return 1 - smoother(prog(t, a1, a2))
+  if (t >= b0 && t < b2) return 1 - smoother(prog(t, b1, b2))
+  if (t >= c0) return cMax * smoother(prog(t, c0, c1))
+  return 0
+}
+
 /* ---------- Camera ---------- */
 
 export interface Cam { x: number; z: number; h: number; roll: number; shake: number }

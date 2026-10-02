@@ -5,8 +5,8 @@ import { BloomEffect, DepthOfFieldEffect, EdgeDetectionMode, EffectComposer as P
 import { N8AOPostPass } from 'n8ao'
 import * as THREE from 'three'
 import { FLASHES, ev } from '../lib/timeline'
-import { clamp, inQuart, lerp, prog, smoother, span } from '../lib/ease'
-import { rng, hash2 } from '../lib/rand'
+import { clamp, inCubic, inQuart, lerp, outCubic, prog, smoother, span } from '../lib/ease'
+import { rng, hash2, vnoise } from '../lib/rand'
 import { paintReport, REPORT_MM } from '../art/report'
 import { paintSheet } from '../art/sheet'
 import { SHEET_MM } from '../art/field'
@@ -14,7 +14,7 @@ import { paintCard, CARD_MM } from '../art/cards'
 import { paintPrompt } from '../art/prompt'
 import { Paper } from './Paper'
 import {
-  POINT, PROPS, SHEET_POS, camera, cardPose, cardStackPose, converge, glassPose, glovePose, gripperA, gripperB,
+  POINT, PROPS, SHEET_POS, camera, cardPose, cardStackPose, converge, glassPose, glovePose, gripperA, gripperB, paint,
   light, reportPose, spherePose, stampPose,
 } from './choreo'
 import { GlassBlock, Glove, Gripper, Logbook, Pen, PromptCard, Ruler, Sphere, Stamp, Table, Wafer } from './objects'
@@ -53,7 +53,36 @@ function Rig({ t, frame }: { t: number; frame: number }) {
   return null
 }
 
-function Lights({ dusk, ignite }: { dusk: number; ignite: number }) {
+/** A candle's breath: slow wander plus a quicker flutter, the same on every render. */
+export function flicker(t: number) {
+  return 1 + 0.07 * (vnoise(t * 7.5, 3.3) - 0.5) * 2 + 0.035 * Math.sin(t * 23.0) * vnoise(t * 2.1, 9.1)
+}
+
+/**
+ * A leaded window for the steel to reflect, as in the Arnolfini mirror: a
+ * bright pane crossed by a heavy transom and mullion and a grid of leads.
+ */
+function LeadedWindow({ position, size, intensity }: { position: [number, number, number]; size: [number, number]; intensity: number }) {
+  const q = useMemo(() => new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().lookAt(new THREE.Vector3(...position), new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 1, 0))), [position])
+  const [w, h] = size
+  const bars: [number, number, number, number][] = [
+    [0, 0, 0.07, h + 0.08], [0, 0, w + 0.08, 0.07], [-w / 2, 0, 0.06, h + 0.08], [w / 2, 0, 0.06, h + 0.08], [0, -h / 2, w + 0.08, 0.06], [0, h / 2, w + 0.08, 0.06],
+    ...[-0.375, 0.375].map(x => [x * w, 0, 0.022, h] as [number, number, number, number]),
+    ...[-0.25, 0.25].map(y => [0, y * h * 2 * 0.5, w, 0.022] as [number, number, number, number]),
+  ]
+  return (
+    <>
+      <Lightformer form="rect" intensity={intensity} position={position} scale={[w, h, 1]} target={[0, 0, 0]} />
+      <group position={position} quaternion={q}>
+        {bars.map(([x, y, bw, bh], i) => (
+          <mesh key={i} position={[x, y, -0.03]}><planeGeometry args={[bw, bh]} /><meshBasicMaterial color="#14181C" side={THREE.DoubleSide} toneMapped={false} /></mesh>
+        ))}
+      </group>
+    </>
+  )
+}
+
+function Lights({ dusk, ignite, t }: { dusk: number; ignite: number; t: number }) {
   const key = useRef<THREE.DirectionalLight>(null)
   const target = useMemo(() => { const o = new THREE.Object3D(); o.position.set(-0.15, 0, 0); return o }, [])
   const keyColor = new THREE.Color('#F2F5F6').lerp(new THREE.Color('#6C83AA'), dusk)
@@ -66,13 +95,22 @@ function Lights({ dusk, ignite }: { dusk: number; ignite: number }) {
       <hemisphereLight args={['#EEF2F5', '#8F969B', lerp(0.5, 0.08, dusk)]} />
       {/* A warm pool around the point (three clamps falloff inside 10 cm, so the cutoff shapes it);
           the rest of the table stays at dusk. */}
-      <pointLight position={[POINT.x, 0.03, POINT.z]} color="#E0784A" intensity={ignite * 0.03} distance={0.16} decay={2} />
-      <Environment resolution={256} frames={1} environmentIntensity={lerp(0.85, 0.1, dusk)}>
+      <pointLight position={[POINT.x, 0.03, POINT.z]} color="#E0784A" intensity={ignite * 0.03 * flicker(t)} distance={0.16} decay={2} />
+      <Environment resolution={512} frames={1} environmentIntensity={lerp(0.85, 0.1, dusk)}>
         {/* The room the steel reflects: a soft grey studio, bright paper below, a dark lens above. */}
         <mesh scale={8}><sphereGeometry args={[1, 32, 16]} /><meshBasicMaterial color="#6E767C" side={THREE.BackSide} /></mesh>
         <mesh position={[0, -0.6, 0]} rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[6, 48]} /><meshBasicMaterial color="#D2D7DA" /></mesh>
         <mesh position={[0, 4.6, 0]} rotation={[Math.PI / 2, 0, 0]}><circleGeometry args={[0.55, 48]} /><meshBasicMaterial color="#141A20" side={THREE.DoubleSide} /></mesh>
-        <Lightformer form="rect" intensity={6} position={[-1.7, 2.0, -1.3]} scale={[1.5, 1.0, 1]} target={[0, 0, 0]} />
+        <LeadedWindow position={[-1.7, 2.0, -1.3]} size={[1.5, 1.0]} intensity={6} />
+        {/* The capture rig overhead: the camera body round the lens, its arm and column. */}
+        <mesh position={[0, 4.52, 0]}><boxGeometry args={[0.95, 0.12, 0.75]} /><meshBasicMaterial color="#1B2026" /></mesh>
+        <mesh position={[1.35, 4.5, 0.15]}><boxGeometry args={[2.2, 0.1, 0.24]} /><meshBasicMaterial color="#1B2026" /></mesh>
+        <mesh position={[2.5, 2.3, 0.15]}><boxGeometry args={[0.16, 4.4, 0.16]} /><meshBasicMaterial color="#1B2026" /></mesh>
+        {/* And someone standing by the window, as small as the painter in the Arnolfini mirror. */}
+        <group position={[-2.3, -0.2, 0.9]}>
+          <mesh position={[0, 0.85, 0]}><capsuleGeometry args={[0.2, 1.0, 6, 16]} /><meshBasicMaterial color="#262B31" /></mesh>
+          <mesh position={[0, 1.72, 0]}><sphereGeometry args={[0.13, 16, 12]} /><meshBasicMaterial color="#262B31" /></mesh>
+        </group>
         <Lightformer form="rect" intensity={3} position={[1.9, 0.3, 1.1]} scale={[0.12, 0.8, 1]} target={[0, 0, 0]} />
         <Lightformer form="rect" intensity={0.35} color="#C4C9CD" position={[0, -1.2, 0]} scale={[6, 6, 1]} target={[0, 0, 0]} />
         {/* Overhead diffusion, round so the spheres read as polished, not faceted. */}
@@ -167,13 +205,80 @@ function Dust({ t, h }: { t: number; h: number }) {
   return <points geometry={geo} material={mat} renderOrder={5} frustumCulled={false} />
 }
 
-function ClayPoint({ ignite }: { ignite: number }) {
+/**
+ * Holbein's trick, in sparks. As the table falls to dusk a long smear of
+ * light lies across it; while everything converges it draws in and resolves
+ * into the lens glyph, the clay point as its dot. It holds a beat, then is
+ * pulled into the light with everything else.
+ */
+const GLYPH_N = 760
+function GlyphSparks({ t, h }: { t: number; h: number }) {
+  const height = useThree(s => s.size.height)
+  const { geo, mat, pts } = useMemo(() => {
+    const r = rng(1108)
+    const R = 0.05
+    // The glyph: a ring, and a filled dot at its upper right (the clay point sits there).
+    const C: [number, number] = [POINT.x - 0.29 * R, POINT.z + 0.19 * R]
+    const pts = Array.from({ length: GLYPH_N }, (_, i) => {
+      let x: number, z: number
+      if (i < 620) {
+        const a = r() * Math.PI * 2, rr = R * (1 + (r() - 0.5) * 0.14)
+        x = C[0] + Math.cos(a) * rr; z = C[1] + Math.sin(a) * rr
+      } else {
+        const a = r() * Math.PI * 2, rr = 0.3 * R * Math.sqrt(r())
+        x = POINT.x + Math.cos(a) * rr; z = POINT.z + Math.sin(a) * rr
+      }
+      return { x, z, size: 0.0008 + r() ** 2 * 0.0012, b: 0.45 + r() * 0.55, ph: r() * 100, delay: r() * 0.12 }
+    })
+    const geo = new THREE.BufferGeometry()
+    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(GLYPH_N * 3), 3))
+    geo.setAttribute('aColor', new THREE.BufferAttribute(new Float32Array(GLYPH_N * 3), 3))
+    geo.setAttribute('aSize', new THREE.BufferAttribute(new Float32Array(pts.map(p => p.size)), 1))
+    const mat = new THREE.ShaderMaterial({
+      uniforms: { uScale: { value: 1 }, uFocus: { value: 1 }, uRange: { value: 0.02 } },
+      vertexShader: dustVert, fragmentShader: dustFrag, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+    })
+    return { geo, mat, pts, C }
+  }, [])
+  const [r0, r1] = ev('glyphResolve'), [, h1] = ev('glyphHold'), [c0, c1] = ev('glyphCollapse')
+  if (t < r0 || t >= c1 + 0.02) return null
+  const H = h / TAN
+  mat.uniforms.uScale.value = height / TAN
+  mat.uniforms.uFocus.value = H
+  mat.uniforms.uRange.value = Math.max(0.012, H * 0.2)
+  // Anamorphic stretch along a diagonal of the table, easing to true at r1.
+  const s = 1 + 7 * (1 - outCubic(prog(t, r0, r1)))
+  const ang = 0.49, ca = Math.cos(ang), sa = Math.sin(ang)
+  const fadeIn = smoother(prog(t, r0, r0 + 0.35))
+  const L = light(t)
+  const pos = geo.attributes.position as THREE.BufferAttribute, col = geo.attributes.aColor as THREE.BufferAttribute
+  const cx = POINT.x - 0.29 * 0.05, cz = POINT.z + 0.19 * 0.05
+  pts.forEach((p, i) => {
+    let dx = p.x - cx, dz = p.z - cz
+    const u = dx * ca + dz * sa, v = -dx * sa + dz * ca
+    const us = u * s, vs = v / Math.pow(s, 0.35) + (s - 1) * 0.004 * (u / 0.05) ** 2
+    dx = us * ca - vs * sa; dz = us * sa + vs * ca
+    let x = cx + dx, z = cz + dz
+    const k = inCubic(clamp((prog(t, c0, c1) - p.delay) / (1 - p.delay)))
+    x = lerp(x, POINT.x, k); z = lerp(z, POINT.z, k)
+    pos.setXYZ(i, x, 0.02 + 0.004 * Math.sin(t * 3 + p.ph) * (1 - k), z)
+    const shimmer = 0.8 + 0.2 * Math.sin(t * 17 + p.ph)
+    const held = t >= r1 && t < h1 ? 1.25 : 1
+    const w = fadeIn * p.b * shimmer * held * (0.55 + 0.9 * L.ignite + 1.5 * k)
+    col.setXYZ(i, 0.95 * w, 0.66 * w, 0.5 * w)
+  })
+  pos.needsUpdate = true
+  col.needsUpdate = true
+  return <points geometry={geo} material={mat} renderOrder={6} frustumCulled={false} />
+}
+
+function ClayPoint({ ignite, t }: { ignite: number; t: number }) {
   if (ignite <= 0) return null
-  const r = 0.0022 + ignite * 0.004
+  const r = (0.0022 + ignite * 0.004) * (0.96 + 0.04 * flicker(t))
   return (
     <mesh position={[POINT.x, 0.016, POINT.z]}>
       <sphereGeometry args={[r, 32, 24]} />
-      <meshBasicMaterial color={new THREE.Color('#D97757').multiplyScalar(2 + ignite * 26)} toneMapped={false} />
+      <meshBasicMaterial color={new THREE.Color('#D97757').multiplyScalar((2 + ignite * 26) * flicker(t))} toneMapped={false} />
     </mesh>
   )
 }
@@ -212,7 +317,9 @@ function Post({ t, frame, h, perf = false }: { t: number; frame: number; h: numb
   const L = light(t)
   const H = h / TAN
   pipe.dof.cocMaterial.worldFocusDistance = H
-  pipe.dof.cocMaterial.worldFocusRange = Math.max(0.012, H * 0.085)
+  const Pn = paint(t)
+  // Painted moments are in deep focus, the way a panel is.
+  pipe.dof.cocMaterial.worldFocusRange = Math.max(0.012, H * 0.085) * (1 + 3 * Pn)
   pipe.bloom.intensity = 0.25 + L.ignite * 0.8
   // Chromatic aberration only at transitions.
   const transitions = [[0.95, 1.55], [2.7, 3.3], [5.85, 6.55], [9.0, 10.6], [10.8, 10.9], [11.85, 12.1], [17.9, 18.6]]
@@ -229,6 +336,8 @@ function Post({ t, frame, h, perf = false }: { t: number; frame: number; h: numb
   g.tint(lerp(0.985, 1.0, L.ignite), 1.0, lerp(1.02, 0.99, L.ignite))
   g.set('uVignette', lerp(0.2, 0.4, L.dusk))
   g.set('uFlare', L.flare ? 0.88 : 0)
+  g.set('uPaint', Pn)
+  g.set('uAspect', size.width / size.height)
 
   // Shadows first, before any transmission material renders its buffer, so the
   // glass refracts a lit scene; then once per frame only.
@@ -305,7 +414,7 @@ export function World({ t, frame, post = true, perf = false }: { t: number; fram
     <>
       <Rig t={t} frame={frame} />
       <color attach="background" args={['#0B0E12']} />
-      <Lights dusk={L.dusk} ignite={L.ignite} />
+      <Lights dusk={L.dusk} ignite={L.ignite} t={t} />
       <Table dusk={L.dusk} />
 
       <Paper pose={sheet} wm={SHEET_MM.w / 1000} hm={SHEET_MM.h / 1000} map={sheetPaint.canvas} version={sheetPaint.version} seed={2} shadow={0.28} mips={false} />
@@ -333,7 +442,8 @@ export function World({ t, frame, post = true, perf = false }: { t: number; fram
       {(() => { const p = converge(t, PROPS.ruler, 6); return <Ruler x={p.x} z={p.z} rot={p.rot} scale={p.scale} /> })()}
 
       <Dust t={t} h={cam.h} />
-      <ClayPoint ignite={L.ignite} />
+      <GlyphSparks t={t} h={cam.h} />
+      <ClayPoint ignite={L.ignite} t={t} />
       {post && <Post t={t} frame={frame} h={cam.h} perf={perf} />}
     </>
   )

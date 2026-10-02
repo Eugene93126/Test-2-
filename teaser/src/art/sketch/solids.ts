@@ -22,6 +22,12 @@ export interface Style {
   gap: number
   /** Construction density 0..1. */
   build01?: number
+  /**
+   * Dürer's burin instead of a designer's pen: regular, swelling lines laid
+   * with the form, diamond cross-hatching, dots in the deepest cells, no
+   * construction left showing.
+   */
+  engrave?: boolean
 }
 
 export interface DC { g: Ctx; v: View; pen: Pen; L: V3; st: Style }
@@ -215,17 +221,31 @@ export function hatchQuad(dc: DC, q: [V3, V3, V3, V3], t: number, cross2 = true)
   const [A, B, C, D] = useU ? q : [q[0], q[3], q[2], q[1]]
   const pa = p2(dc.v, A), pb = p2(dc.v, B), pc = p2(dc.v, C), pd = p2(dc.v, D)
   const across = Math.max(Math.hypot(pd[0] - pa[0], pd[1] - pa[1]), Math.hypot(pc[0] - pb[0], pc[1] - pb[1]))
+  const eng = !!dc.st.engrave
   const lay = (A: V3, B: V3, C: V3, D: V3, gap: number, ink: Ink) => {
     const n = Math.floor(across / gap)
     for (let i = 1; i < n; i++) {
-      const v = (i + dc.pen.rand(-0.25, 0.25)) / n
+      const v = (i + (eng ? 0 : dc.pen.rand(-0.25, 0.25))) / n
       const p0 = lerp3(A, D, v), p1 = lerp3(B, C, v)
-      const s0 = lerp3(p0, p1, dc.pen.rand(0, 0.1)), s1 = lerp3(p1, p0, dc.pen.rand(0, 0.14))
-      stroke3(dc, [s0, s1], 1.15, ink, { wobble: 0.35, taper: 0.5, flick: true })
+      const s0 = lerp3(p0, p1, eng ? 0.02 : dc.pen.rand(0, 0.1)), s1 = lerp3(p1, p0, eng ? 0.02 : dc.pen.rand(0, 0.14))
+      stroke3(dc, [s0, s1], eng ? 1.0 : 1.15, ink, eng ? { wobble: 0.08, taper: 1 } : { wobble: 0.35, taper: 0.5, flick: true })
     }
+    return n
   }
   const gap = gapFor(dc, t)
-  lay(A, B, C, D, gap, dc.st.hatch)
+  const n1 = lay(A, B, C, D, gap, dc.st.hatch)
+  if (eng) {
+    if (cross2 && t > 0.6) {
+      const n2 = lay(A, D, C, B, gap * 1.15, dc.st.hatch)
+      // Dot-and-lozenge: a point in the middle of each diamond, deepest tone only.
+      if (t > 0.86) for (let i = 0; i < n1; i++) for (let j = 0; j < n2; j++) {
+        const u = (j + 0.5) / n2, v = (i + 0.5) / n1
+        const p = p2(dc.v, lerp3(lerp3(A, D, v), lerp3(B, C, v), u))
+        dc.pen.dot(p[0], p[1], 0.55 * dc.st.k, dc.st.hatch)
+      }
+    }
+    return
+  }
   if (cross2 && t > 0.78) lay(A, D, C, B, gap * 1.35, deepInk(dc))
 }
 
@@ -290,7 +310,25 @@ export class Cyl extends Solid {
       if (acc >= gapFor(dc, t)) {
         acc = 0
         const p0 = this.ringA(th), p1 = this.ringB(th)
-        stroke3(dc, [lerp3(p0, p1, dc.pen.rand(0, 0.08)), lerp3(p1, p0, dc.pen.rand(0, 0.12))], 1.15, t > 0.8 ? deepInk(dc) : dc.st.hatch, { wobble: 0.3, taper: 0.5, flick: true })
+        if (dc.st.engrave) stroke3(dc, [lerp3(p0, p1, 0.02), lerp3(p1, p0, 0.02)], 1.0, dc.st.hatch, { wobble: 0.08, taper: 1 })
+        else stroke3(dc, [lerp3(p0, p1, dc.pen.rand(0, 0.08)), lerp3(p1, p0, dc.pen.rand(0, 0.12))], 1.15, t > 0.8 ? deepInk(dc) : dc.st.hatch, { wobble: 0.3, taper: 0.5, flick: true })
+      }
+    }
+    if (dc.st.engrave) {
+      // Rings round the form across the shadow side: the engraver's mesh.
+      const pa = p2(dc.v, this.a), pb = p2(dc.v, this.b)
+      const Lpx = Math.hypot(pb[0] - pa[0], pb[1] - pa[1])
+      const rings = Math.max(2, Math.floor(Lpx / (dc.st.gap * 1.3)))
+      for (let r = 1; r < rings; r++) {
+        const k = r / rings
+        const pts: V3[] = []
+        const flush = () => { if (pts.length > 2) stroke3(dc, pts.splice(0), 0.9, dc.st.hatch, { wobble: 0.06, taper: 1 }); else pts.length = 0 }
+        for (let i = 0; i <= 72; i++) {
+          const th = (i / 72) * Math.PI * 2
+          const deep = this.sideVis(dc, th) && this.tone(this.sideN(th), dc.L) > 0.62
+          if (deep) pts.push(lerp3(this.ringA(th), this.ringB(th), k)); else flush()
+        }
+        flush()
       }
     }
     if (!this.caps) return
@@ -340,7 +378,7 @@ export class Ell extends Solid {
       const pts: V3[] = Array.from({ length: n }, (_, i) => { const f = (i / n) * Math.PI * 2; return add(mul(L, s), add(mul(a1, Math.cos(f) * rho), mul(a2, Math.sin(f) * rho))) })
       for (const run of runs(n, i => this.vis(dc, pts[i]))) {
         if (run.length < 4) continue
-        const cut0 = Math.floor(run.length * dc.pen.rand(0, 0.12)), cut1 = Math.floor(run.length * dc.pen.rand(0, 0.12))
+        const cut0 = dc.st.engrave ? 1 : Math.floor(run.length * dc.pen.rand(0, 0.12)), cut1 = dc.st.engrave ? 1 : Math.floor(run.length * dc.pen.rand(0, 0.12))
         const seg = run.slice(cut0, run.length - cut1)
         if (seg.length > 2) stroke3(dc, seg.map(i => this.M(pts[i])), 1.15, dc.st.hatch, { wobble: 0.3, taper: 0.6 })
       }
@@ -483,11 +521,11 @@ export function renderSolids(g: Ctx, v: View, parts: Solid[], st: Style, seed: n
       g.save(); path(); g.clip(); s.hatch(dc); g.restore()
     }
     s.creases(dc)
-    pen.stroke(out, { w: 2.5 * st.k * s.weight, ink: st.line, closed: true, wobble: 0.7 })
+    pen.stroke(out, { w: 2.5 * st.k * s.weight, ink: st.line, closed: true, wobble: st.engrave ? 0.15 : 0.7 })
     shadowSide(dc, s, out)
     for (const d of s.details) d.draw(dc)
   }
-  for (const s of parts) if (s.build) s.construct(dc)
+  if (!st.engrave) for (const s of parts) if (s.build) s.construct(dc)
   return dc
 }
 
@@ -529,8 +567,12 @@ export function groundShadow(dc: DC, parts: Solid[], y0: number, clip?: { x0: nu
   g.beginPath()
   for (const r of regions) { r.forEach((p, i) => (i ? g.lineTo(p[0], p[1]) : g.moveTo(p[0], p[1]))); g.closePath() }
   g.clip('nonzero')
-  pen.hatchBox(bb.x0, bb.y0, bb.x1, bb.y1, -0.62, st.gap * 0.75, { w: 1.05 * st.k, ink: st.line, wobble: 0.5, alpha: 0.7, flick: true }, 0.5)
-  pen.hatchBox(bb.x0, bb.y0, bb.x1, bb.y1, -0.42, st.gap * 1.6, { w: 0.9 * st.k, ink: st.hatch, wobble: 0.5, alpha: 0.6 }, 0.5)
+  if (st.engrave) {
+    pen.hatchBox(bb.x0, bb.y0, bb.x1, bb.y1, 0, st.gap * 0.9, { w: 0.95 * st.k, ink: st.hatch, wobble: 0.05, taper: 1 }, 0)
+  } else {
+    pen.hatchBox(bb.x0, bb.y0, bb.x1, bb.y1, -0.62, st.gap * 0.75, { w: 1.05 * st.k, ink: st.line, wobble: 0.5, alpha: 0.7, flick: true }, 0.5)
+    pen.hatchBox(bb.x0, bb.y0, bb.x1, bb.y1, -0.42, st.gap * 1.6, { w: 0.9 * st.k, ink: st.hatch, wobble: 0.5, alpha: 0.6 }, 0.5)
+  }
   g.restore()
 }
 
