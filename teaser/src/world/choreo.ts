@@ -1,5 +1,5 @@
 import { ev, at, FLASHES } from '../lib/timeline'
-import { clamp, deg, inCubic, inOutCubic, inQuart, lerp, outCubic, outQuart, prog, smoother, span, wobble } from '../lib/ease'
+import { clamp, deg, inCubic, inOutCubic, inOutSine, inQuart, lerp, outCubic, outQuart, prog, smoother, span, wobble } from '../lib/ease'
 import { SPHERES, SHEET_MM, SPHERE_R } from '../art/field'
 import { ELLIPSE, ellipseTip, REPORT_MM, SEAL } from '../art/report'
 import { rng } from '../lib/rand'
@@ -43,8 +43,10 @@ export const PROPS = {
 export function converge(t: number, p: Pose, k = 0): Pose {
   const c = span(t, ev('converge'))
   if (c <= 0) return p
-  // Strong ease-in, a touch staggered so things don't arrive as one block.
-  const e = inQuart(clamp((c - k * 0.04) / (1 - k * 0.04)))
+  // A slow drift as dusk falls, then the rush; a touch staggered so things
+  // don't arrive as one block.
+  const u = clamp((c - k * 0.04) / (1 - k * 0.04))
+  const e = 0.18 * inOutSine(u) + 0.82 * inQuart(u)
   const swirl = e * e * 0.9
   const dx = p.x - POINT.x, dz = p.z - POINT.z
   const cs = Math.cos(swirl), sn = Math.sin(swirl)

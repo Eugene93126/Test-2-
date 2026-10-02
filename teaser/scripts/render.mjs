@@ -38,7 +38,7 @@ for (let i = 0; i < wanted.length; i += chunk) {
   mkdirSync(tmp, { recursive: true })
   const c0 = Date.now()
   await renderFrames({
-    ...opts, composition, outputDir: tmp, imageFormat: format, jpegQuality: 92, scale, concurrency,
+    ...opts, composition, outputDir: tmp, imageFormat: format, ...(format === 'jpeg' ? { jpegQuality: 92 } : {}), scale, concurrency,
     frameRange: [frames[0], frames[frames.length - 1]], everyNthFrame: every,
     onStart: () => {},
     onFrameUpdate: n => {
