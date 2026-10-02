@@ -1,8 +1,10 @@
 import { useLayoutEffect, useRef } from 'react'
-import { AbsoluteFill } from 'remotion'
-import { TEXT } from './lib/timeline'
+import { AbsoluteFill, useVideoConfig } from 'remotion'
+import { FPS, ev } from './lib/timeline'
+import { paintReveal, paintRevealGlitch } from './art/reveal'
 
-// July 8. Nothing moves but the grain.
+// July 8., as an engraved title page (src/art/reveal.ts). Nothing moves but
+// the grain, after the sigil boots in its first two frames.
 
 function Grain({ frame }: { frame: number }) {
   // Fine grain at half resolution, drawn straight into a canvas each frame.
@@ -24,14 +26,25 @@ function Grain({ frame }: { frame: number }) {
   return <canvas ref={ref} width={960} height={540} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0.055, mixBlendMode: 'screen' }} />
 }
 
-export function Reveal({ frame, scale = 1 }: { frame: number; scale?: number }) {
+/** The page itself, painted once; the sigil's boot glitch on the first frames. */
+function Page({ frame }: { frame: number }) {
+  const { width, height } = useVideoConfig()
+  const ref = useRef<HTMLCanvasElement>(null)
+  useLayoutEffect(() => {
+    const c = ref.current
+    if (!c) return
+    const g = c.getContext('2d', { willReadFrequently: true })!
+    g.drawImage(paintReveal(width, height), 0, 0)
+    const k = frame - Math.round(ev('reveal')[0] * FPS)
+    paintRevealGlitch(g, width, height, k === 0 ? 1 : k === 1 ? 0.45 : 0)
+  }, [frame, width, height])
+  return <canvas ref={ref} width={width} height={height} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} />
+}
+
+export function Reveal({ frame }: { frame: number; scale?: number }) {
   return (
-    <AbsoluteFill style={{ background: '#0B0E12', alignItems: 'center', justifyContent: 'center' }}>
-      <AbsoluteFill style={{ background: 'radial-gradient(ellipse at 50% 48%, rgba(40,52,64,0.35), rgba(11,14,18,0) 60%)' }} />
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 26 * scale, transform: `translateY(${-6 * scale}px)` }}>
-        <div style={{ fontFamily: 'Newsreader', fontWeight: 400, fontSize: 104 * scale, letterSpacing: '-0.012em', color: '#DCE3E8', fontVariationSettings: '"opsz" 72' }}>{TEXT.revealTitle}</div>
-        <div style={{ fontFamily: '"JetBrains Mono"', fontWeight: 400, fontSize: 19 * scale, letterSpacing: '0.18em', color: '#5E6B73' }}>{TEXT.revealCaption}</div>
-      </div>
+    <AbsoluteFill style={{ background: '#0B0E12' }}>
+      <Page frame={frame} />
       <Grain frame={frame} />
     </AbsoluteFill>
   )

@@ -7,6 +7,9 @@ const FACES: [string, string, FontFaceDescriptors?][] = [
   ['Courier Prime', 'fonts/CourierPrime-Bold.ttf', { weight: '700' }],
   ['JetBrains Mono', 'fonts/JetBrainsMono.ttf', { weight: '100 800' }],
   ['Instrument Sans', 'fonts/InstrumentSans.ttf', { weight: '400 700', stretch: '75% 100%' }],
+  ['Bodoni Moda', 'fonts/BodoniModa.ttf', { weight: '400 900' }],
+  ['Bodoni Moda', 'fonts/BodoniModa-Italic.ttf', { weight: '400 900', style: 'italic' }],
+  ['Cinzel', 'fonts/Cinzel.ttf', { weight: '400 900' }],
 ]
 
 let loading: Promise<void> | null = null
