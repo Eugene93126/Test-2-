@@ -308,7 +308,7 @@ export function World({ t, frame, post = true, perf = false }: { t: number; fram
       <Lights dusk={L.dusk} ignite={L.ignite} />
       <Table dusk={L.dusk} />
 
-      <Paper pose={sheet} wm={SHEET_MM.w / 1000} hm={SHEET_MM.h / 1000} map={sheetPaint.canvas} version={sheetPaint.version} seed={2} shadow={0.28} />
+      <Paper pose={sheet} wm={SHEET_MM.w / 1000} hm={SHEET_MM.h / 1000} map={sheetPaint.canvas} version={sheetPaint.version} seed={2} shadow={0.28} mips={false} />
       <Paper pose={rp} wm={REPORT_MM.w / 1000} hm={REPORT_MM.h / 1000} map={report.canvas} version={report.version} seed={3} shadow={0.34}
         lift={Math.sin(span(t, ev('reportOut')) * Math.PI) * 0.0015} />
 

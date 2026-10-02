@@ -36,14 +36,16 @@ export function softRect(aspect: number, blurRel: number) {
 }
 
 const texCache = new WeakMap<HTMLCanvasElement, THREE.CanvasTexture>()
-export function textureFor(c: HTMLCanvasElement, srgb = true) {
+/** mips: false for canvases repainted every frame and shown near 1:1, where
+ *  rebuilding the mip chain on the CPU costs more than it gives. */
+export function textureFor(c: HTMLCanvasElement, srgb = true, mips = true) {
   let t = texCache.get(c)
   if (!t) {
     t = new THREE.CanvasTexture(c)
     t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace
-    t.anisotropy = 8
-    t.generateMipmaps = true
-    t.minFilter = THREE.LinearMipmapLinearFilter
+    t.anisotropy = mips ? 8 : 1
+    t.generateMipmaps = mips
+    t.minFilter = mips ? THREE.LinearMipmapLinearFilter : THREE.LinearFilter
     texCache.set(c, t)
   }
   return t
@@ -62,11 +64,12 @@ interface Props {
   shadow?: number
   lift?: number
   visible?: boolean
+  mips?: boolean
 }
 
-export function Paper({ pose, wm, hm, map, version = 0, roughness = 0.92, curl = 1, seed = 1, shadow = 0.32, lift = 0, visible = true }: Props) {
+export function Paper({ pose, wm, hm, map, version = 0, roughness = 0.92, curl = 1, seed = 1, shadow = 0.32, lift = 0, visible = true, mips = true }: Props) {
   const geo = useMemo(() => paperGeometry(wm, hm, curl, seed), [wm, hm, curl, seed])
-  const tex = textureFor(map)
+  const tex = textureFor(map, true, mips)
   useMemo(() => { tex.needsUpdate = true }, [tex, version])
   // Paper tooth: a fine tiling bump, one tile per 4 cm, so raking light finds the fibres.
   const tooth = useMemo(() => {

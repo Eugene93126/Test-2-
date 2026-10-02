@@ -2,26 +2,56 @@
 
 A 20-second wordless teaser for the (fictional, in-world) Claude Pantheon 2.0, posted July 7, 2034. Lore: `2034_AI_Landscape_Canon.md`. Concept, shot list, transitions and assets: [`PLAN.md`](PLAN.md). Timing for picture and sound: [`src/timeline.json`](src/timeline.json).
 
-Status: **style frames v2 ready for review** (step 2 of 7): [`out/review/style_frames.jpg`](out/review/style_frames.jpg), full-size frames in `out/review/style_frames/`, all twelve CrossBody body studies in [`out/review/crossbody_cards.jpg`](out/review/crossbody_cards.jpg) (full size in `out/review/cards/`). Animatic, final picture, audio, mux/QA and the square cut come next.
+Status: **final 1080p film delivered** (steps 1–6 of 7; the square recompose is step 7). Deliverables are in [`deliverables/`](deliverables/):
+
+| File | What |
+|---|---|
+| `teaser_1080p.mp4` | 1920×1080, 60 fps, H.264 High CRF 16, AAC 320 kb/s stereo, 20.0 s |
+| `rough_cut_720p.mp4` | the rough cut (720p, every third frame, 20 fps) with the same mix |
+| `contact_sheet.png` | one frame every 0.5 s |
+| `audio_stems/` | `music.wav`, `sfx.wav`, `mix.wav` (48 kHz, 24-bit) |
+| `QA.md`, `qa.json`, `sync_checks.png` | ffprobe, loudness and sync spot-checks |
+
+Review stills from earlier steps are in `out/review/` (style frames, the twelve CrossBody cards).
 
 ## Re-render
 
 ```sh
 cd teaser
 npm install
+pip install numpy scipy soundfile pyloudnorm matplotlib pillow
 
-# Style frames: one still per shot, times taken from the timeline → out/stills/
+# 1. Picture: 1200 PNGs in out/frames/final (resumable: rerun to continue after a stop)
+node scripts/render.mjs --out out/frames/final --format png
+
+# 2. Sound: score and effects from the timeline → out/audio/{music,sfx,mix}.wav
+python3 audio/synth.py
+
+# 3. Mux + QA → deliverables/ (MP4, stems, contact sheet, QA.md, sync_checks.png)
+python3 scripts/package.py final
+
+# Rough cut: 720p, every third frame, same mix
+node scripts/render.mjs --out out/frames/rough --format jpeg --scale 0.6667 --every 3
+python3 scripts/package.py rough
+
+# Style frames: one still per shot (times from the timeline) → out/stills/
 npm run stills
-# Or any times (seconds):
-node scripts/stills.mjs Teaser 2.5 9.85
-
-# Live preview in the browser (scrub the timeline):
-npm run studio
+node scripts/stills.mjs Teaser 2.5 9.85      # any times, in seconds
+node scripts/stills.mjs CardPreview 0 6      # CrossBody cards, flat
+npm run studio                               # scrub the timeline in a browser
 ```
 
-Rendering uses Chromium's headless shell with WebGL on SwiftShader, because the build machine has no GPU. Paths are in `scripts/env.mjs`; override with `REMOTION_CHROME` and `REMOTION_GL` (for example `REMOTION_GL=angle` on a machine with a GPU, which is far faster).
+Rendering uses Chromium's headless shell with WebGL on SwiftShader, because the build machine has no GPU: about 5–6 s a frame at 1080p, so the full film takes roughly two hours. Paths are in `scripts/env.mjs`; override with `REMOTION_CHROME` and `REMOTION_GL` (for example `REMOTION_GL=angle` on a machine with a GPU, which is far faster). More tabs (`--concurrency`) do not help on CPU rendering.
 
 `NOPOST=1 node scripts/stills.mjs …` renders without the post chain (depth of field, bloom, tone mapping, grade), which is useful for checking raw lighting.
+
+## Sound
+
+Everything is synthesised by `audio/synth.py` with numpy and scipy: no samples, no recordings, no third-party music. 100 BPM, D minor; the motif is D–A–F (the three sphere tinks, the card blips climbing D minor, resolved by the final D).
+
+- Music: a D1/D2 drone (0–3 s), a cold detuned-saw pad on D-A-E-F with a muted pulse on every beat (3–12 s), the pulse locked to the twelve card flashes with a glassy D-A-F arpeggio (12–16 s), a noise and sine riser that ends exactly on the cut (16–18.6 s), digital silence (18.6–18.8 s), one piano-like D3 built from inharmonic partials in a synthetic room (18.8 s).
+- Effects follow the cue sheet in the timeline: glass key ticks, the card's suction release, paper, the pen following the ellipse's speed, sphere rolls and tinks, the filings' magnetic shimmer and crackle, the light sweep, servos, footfalls and rotors, the glass disc's friction and ring, the stamp's thud (120→40 Hz drop), the glove, a slap and blip per card, the convergence suck-in and the relay clunk on the flare frame.
+- Mix: effects sit 2.5 dB above the music; −14 LUFS integrated, true peak below −1 dBTP (4× oversampled look-ahead limiter). Nothing rings past 18.6 s except the final note. The stems are written at the mix gain, before the limiter.
 
 ## How it is built
 

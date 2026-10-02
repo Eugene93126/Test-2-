@@ -19,8 +19,8 @@ export const S3_STYLE: Style = {
   dark: { color: '#F2F8FB', alpha: 0.85 },
   // A photogram's body is lighter than the open sky around it: forms read solid.
   fill: 'rgba(40, 88, 134, 0.7)',
-  k: 1.0,
-  gap: 3.0,
+  k: 0.78,
+  gap: 2.4,
   build01: 0.7,
 }
 const LIGHT: V3 = norm([-0.55, 0.75, 0.4])

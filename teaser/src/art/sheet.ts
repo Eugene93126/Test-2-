@@ -11,7 +11,8 @@ import type { Ctx } from './canvas'
 // cyanotype, the filings left white; the white lines then become the motion
 // paths of three bodies.
 
-export const SHEET_PPMM = 6
+// About 1:1 with the screen at its largest (S2–S4a); it is repainted every frame.
+export const SHEET_PPMM = 4.5
 const P = SHEET_PPMM
 const GRAPHITE = '#262C31'
 const CYAN_WHITE = '#EEF4F6'
