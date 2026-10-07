@@ -1,0 +1,32 @@
+// Phase 3 interaction run on desktop: section switch, model picker, Dock customization, magnet.
+import { chromium } from 'playwright-core'
+import { resolve } from 'node:path'
+const out = resolve(process.argv[2])
+const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+  args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] })
+const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
+page.on('pageerror', e => console.error('[pageerror]', e.message))
+page.on('console', m => { if (m.type() === 'error') console.log('[error]', m.text()) })
+const shot = async (name, wait = 2500) => { await page.waitForTimeout(wait); await page.screenshot({ path: resolve(out, `${name}.png`) }); console.log('shot', name) }
+await page.goto('http://localhost:5173/?theme=glass')
+await page.waitForTimeout(6000)
+await page.click('button[aria-label="Claude Circle"]')
+await shot('circle', 3500)
+await page.click('#model-chip')
+await shot('models', 4500)
+await page.click('.model-row:has-text("Mythos Duo")')
+await shot('mythos', 2500)
+await page.click('.model-row:has-text("Pantheon 2.0")')
+await page.click('.model-use')
+await shot('pantheon', 4000)
+await page.click('button[aria-label="Customize Dock"]')
+await page.waitForTimeout(3000)
+await page.click('.pin:has-text("World")')
+await page.click('.pin:has-text("Code")')
+await shot('dock-edit', 4000)
+await page.click('button[aria-label="Customize Dock"]')
+await page.waitForTimeout(2500)
+const home = await page.locator('button[aria-label="Claude Home"]').boundingBox()
+await page.mouse.move(home.x + home.width / 2 + 26, home.y + 22, { steps: 5 })
+await shot('magnet', 2500)
+await browser.close()

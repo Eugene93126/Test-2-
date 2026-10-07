@@ -1,0 +1,4 @@
+node_modules
+out/*
+!out/review/
+__pycache__
